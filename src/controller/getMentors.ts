@@ -1,10 +1,14 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 
+// Flexible schema — returns all fields as-is from the collection
+const mentorSchema = new mongoose.Schema({}, { strict: false });
+const mentorsDb = mongoose.connection.useDb('mentorsDb');
+const Mentor = mentorsDb.model('Mentor', mentorSchema, 'mentorsCollection');
+
 const getMentors = async (req: Request, res: Response): Promise<void> => {
     try {
-        const mentorsDb = mongoose.connection.useDb('mentorsDb');
-        const mentors = await mentorsDb.collection('mentorsCollection').find({}).toArray();
+        const mentors = await Mentor.find({}).lean();
 
         res.status(200).json({ message: 'Mentors fetched successfully', data: mentors });
     } catch (error) {
