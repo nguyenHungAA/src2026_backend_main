@@ -75,7 +75,7 @@ const submitMentorProfile = async (req: Request, res: Response): Promise<void> =
                 avatarImage,
                 feedback: '',
             },
-            { upsert: true, new: true, setDefaultsOnInsert: true }
+            { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
         );
 
         // Send notification email (non-blocking)

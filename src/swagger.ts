@@ -138,6 +138,8 @@ const swaggerDocument = {
                                 publishDate: '2026-05-22',
                                 content: 'Publication content...',
                                 authorGmail: 'author@example.com',
+                                doi: 'https://doi.org/10.1016/example',
+                                journal: 'Journal of Experimental Software Systems',
                                 images: [
                                     {
                                         url: 'https://res.cloudinary.com/example/image/upload/sample.jpg',
@@ -450,6 +452,14 @@ const swaggerDocument = {
                     publishDate: { type: 'string', example: '2026-05-22' },
                     content: { type: 'string', example: 'Publication content...' },
                     authorGmail: { type: 'string', format: 'email', example: 'author@example.com' },
+                    doi: {
+                        type: 'string',
+                        example: 'https://doi.org/10.1016/example',
+                    },
+                    journal: {
+                        type: 'string',
+                        example: 'Journal of Experimental Software Systems',
+                    },
                     images: {
                         type: 'array',
                         items: { $ref: '#/components/schemas/PublicationImage' },

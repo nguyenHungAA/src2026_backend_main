@@ -97,7 +97,9 @@ Submit a new publication.
     "author": "Author Name",
     "publishDate": "2023-10-26",
     "content": "Publication content...",
-    "authorGmail": "[EMAIL_ADDRESS]"
+    "authorGmail": "[EMAIL_ADDRESS]",
+    "doi": "https://doi.org/10.1016/example",
+    "journal": "Journal of Experimental Software Systems"
 }
 ```
 
