@@ -1,10 +1,12 @@
 import express, { Request, Response } from 'express'
+import cors from 'cors'
 import publicationRouter from './routes/publicationRoute.js'
 import mentorRouter from './routes/mentorRoute.js'
 import connectDB from './config/db.js'
 
 const app = express();
 
+app.use(cors());
 app.use(express.json());
 
 app.get('/', (req: Request, res: Response) => {
@@ -36,9 +38,19 @@ app.get('/', (req: Request, res: Response) => {
                 <p class="subtitle">Welcome! Here are the available API endpoints:</p>
                 <ul class="api-list">
                     <li class="api-item">
+                        <span class="method get">GET</span>
+                        <span class="path">/publications</span>
+                        <p class="desc">Retrieve all publications, sorted by newest first.</p>
+                    </li>
+                    <li class="api-item">
                         <span class="method post">POST</span>
                         <span class="path">/publications/submit</span>
-                        <p class="desc">Submit a new publication. Saves the publication to the database and sends a notification email to the admin.</p>
+                        <p class="desc">Submit a new publication. Saves the publication to the database and sends a notification email to the admin. Content can include HTML with embedded image URLs.</p>
+                    </li>
+                    <li class="api-item">
+                        <span class="method post">POST</span>
+                        <span class="path">/publications/upload-image</span>
+                        <p class="desc">Upload an image for a publication. Accepts multipart form data with field name "image" (max 5MB). Returns a Cloudinary URL to embed in publication content.</p>
                     </li>
                     <li class="api-item">
                         <span class="method get">GET</span>

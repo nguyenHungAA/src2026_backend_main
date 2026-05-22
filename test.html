@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SRC2026 API Test</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; padding: 2rem; }
+        h1 { margin-bottom: 0.5rem; }
+        .subtitle { color: #94a3b8; margin-bottom: 2rem; }
+        .section { background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .section h2 { font-size: 1.1rem; margin-bottom: 1rem; color: #fff; }
+        .badge { display: inline-block; font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 0.3rem; margin-right: 0.5rem; }
+        .badge-post { background: #7c2d12; color: #fdba74; }
+        .badge-get { background: #065f46; color: #6ee7b7; }
+        label { display: block; color: #94a3b8; font-size: 0.85rem; margin-bottom: 0.3rem; margin-top: 0.75rem; }
+        input, textarea { width: 100%; padding: 0.6rem; background: #0f172a; border: 1px solid #475569; border-radius: 0.5rem; color: #e2e8f0; font-family: inherit; font-size: 0.9rem; }
+        textarea { min-height: 80px; resize: vertical; }
+        input[type="file"] { padding: 0.4rem; }
+        button { margin-top: 1rem; padding: 0.6rem 1.5rem; border: none; border-radius: 0.5rem; font-weight: 600; cursor: pointer; font-size: 0.9rem; }
+        .btn-primary { background: #3b82f6; color: #fff; }
+        .btn-danger { background: #ef4444; color: #fff; }
+        .btn-success { background: #22c55e; color: #fff; }
+        button:hover { opacity: 0.85; }
+        .result { margin-top: 1rem; padding: 1rem; background: #0f172a; border: 1px solid #334155; border-radius: 0.5rem; font-family: monospace; font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; display: none; }
+        .result.show { display: block; }
+        .preview { margin-top: 1rem; }
+        .preview img { max-width: 300px; border-radius: 0.5rem; border: 1px solid #334155; }
+        .pub-card { background: #0f172a; border: 1px solid #334155; border-radius: 0.75rem; padding: 1.25rem; margin-bottom: 1rem; }
+        .pub-card h3 { color: #fff; font-size: 1rem; margin-bottom: 0.25rem; }
+        .pub-meta { color: #64748b; font-size: 0.8rem; margin-bottom: 0.75rem; }
+        .pub-content { color: #cbd5e1; font-size: 0.875rem; line-height: 1.6; }
+        .pub-content img { max-width: 100%; border-radius: 0.5rem; margin: 0.5rem 0; }
+        .pub-images { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
+        .pub-images img { width: 80px; height: 80px; object-fit: cover; border-radius: 0.4rem; border: 1px solid #334155; }
+        .pub-empty { color: #475569; font-style: italic; text-align: center; padding: 2rem; }
+        .uploaded-list { margin-top: 1rem; }
+        .uploaded-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem; background: #0f172a; border-radius: 0.5rem; margin-bottom: 0.5rem; }
+        .uploaded-item img { width: 60px; height: 60px; object-fit: cover; border-radius: 0.3rem; }
+        .uploaded-item .info { flex: 1; font-size: 0.8rem; color: #94a3b8; word-break: break-all; }
+        .uploaded-item button { margin-top: 0; padding: 0.3rem 0.75rem; font-size: 0.75rem; }
+        .container { max-width: 700px; margin: 0 auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 SRC2026 API Tester</h1>
+        <p class="subtitle">Test all publication endpoints locally</p>
+
+        <!-- BASE URL -->
+        <div class="section">
+            <h2>⚙️ Base URL</h2>
+            <input type="text" id="baseUrl" value="http://localhost:3000" />
+        </div>
+
+        <!-- UPLOAD IMAGE -->
+        <div class="section">
+            <h2><span class="badge badge-post">POST</span> /publications/upload-image</h2>
+            <label>Select an image (max 5MB)</label>
+            <input type="file" id="imageFile" accept="image/*" />
+            <button class="btn-primary" onclick="uploadImage()">Upload Image</button>
+            <div class="result" id="uploadResult"></div>
+            <div class="uploaded-list" id="uploadedList"></div>
+        </div>
+
+        <!-- DELETE IMAGE -->
+        <div class="section">
+            <h2><span class="badge badge-post">POST</span> /publications/delete-image</h2>
+            <label>Public ID (from upload response, or click delete above)</label>
+            <input type="text" id="deletePublicId" placeholder="src2026/publications/abc123" />
+            <button class="btn-danger" onclick="deleteImage()">Delete Image</button>
+            <div class="result" id="deleteResult"></div>
+        </div>
+
+        <!-- SUBMIT PUBLICATION -->
+        <div class="section">
+            <h2><span class="badge badge-post">POST</span> /publications/submit</h2>
+            <label>Title</label>
+            <input type="text" id="publishTitle" value="My Test Publication" />
+            <label>Author</label>
+            <input type="text" id="author" value="Test Author" />
+            <label>Publish Date</label>
+            <input type="text" id="publishDate" value="2026-05-21" />
+            <label>Author Gmail</label>
+            <input type="text" id="authorGmail" value="test@gmail.com" />
+            <label>Content (HTML — uploaded image URLs auto-inserted)</label>
+            <textarea id="content"><p>Hello, this is a test publication.</p></textarea>
+            <button class="btn-success" onclick="submitPublication()">Submit Publication</button>
+            <div class="result" id="submitResult"></div>
+        </div>
+
+        <!-- GET PUBLICATIONS -->
+        <div class="section">
+            <h2><span class="badge badge-get">GET</span> /publications</h2>
+            <button class="btn-primary" onclick="getPublications()">Fetch Publications</button>
+            <div class="result" id="pubsResult"></div>
+            <div id="pubsDisplay"></div>
+        </div>
+
+        <!-- GET MENTORS -->
+        <div class="section">
+            <h2><span class="badge badge-get">GET</span> /mentors</h2>
+            <button class="btn-primary" onclick="getMentors()">Fetch Mentors</button>
+            <div class="result" id="mentorsResult"></div>
+        </div>
+    </div>
+
+    <script>
+        const uploadedImages = [];
+
+        function getBase() {
+            return document.getElementById('baseUrl').value.replace(/\/+$/, '');
+        }
+
+        function showResult(id, data) {
+            const el = document.getElementById(id);
+            el.textContent = JSON.stringify(data, null, 2);
+            el.classList.add('show');
+        }
+
+        // ── Upload Image ──
+        async function uploadImage() {
+            const file = document.getElementById('imageFile').files[0];
+            if (!file) return alert('Pick a file first');
+
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                const res = await fetch(`${getBase()}/publications/upload-image`, {
+                    method: 'POST',
+                    body: formData,
+                });
+                const data = await res.json();
+                showResult('uploadResult', data);
+
+                if (data.data) {
+                    uploadedImages.push(data.data);
+                    renderUploadedList();
+
+                    // Auto-insert img tag into content
+                    const content = document.getElementById('content');
+                    content.value += `\n<img src="${data.data.url}" alt="uploaded image" />`;
+                }
+            } catch (err) {
+                showResult('uploadResult', { error: err.message });
+            }
+        }
+
+        // ── Render uploaded images list ──
+        function renderUploadedList() {
+            const list = document.getElementById('uploadedList');
+            list.innerHTML = uploadedImages.map((img, i) => `
+                <div class="uploaded-item">
+                    <img src="${img.url}" alt="uploaded" />
+                    <div class="info">
+                        <div><strong>URL:</strong> ${img.url}</div>
+                        <div><strong>ID:</strong> ${img.publicId}</div>
+                    </div>
+                    <button class="btn-danger" onclick="deleteFromList(${i})">Delete</button>
+                </div>
+            `).join('');
+        }
+
+        // ── Delete from list + Cloudinary ──
+        async function deleteFromList(index) {
+            const img = uploadedImages[index];
+            document.getElementById('deletePublicId').value = img.publicId;
+            await deleteImage();
+            uploadedImages.splice(index, 1);
+            renderUploadedList();
+        }
+
+        // ── Delete Image ──
+        async function deleteImage() {
+            const publicId = document.getElementById('deletePublicId').value;
+            if (!publicId) return alert('Enter a publicId');
+
+            try {
+                const res = await fetch(`${getBase()}/publications/delete-image`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ publicId }),
+                });
+                const data = await res.json();
+                showResult('deleteResult', data);
+            } catch (err) {
+                showResult('deleteResult', { error: err.message });
+            }
+        }
+
+        // ── Submit Publication ──
+        async function submitPublication() {
+            const body = {
+                publishTitle: document.getElementById('publishTitle').value,
+                author: document.getElementById('author').value,
+                publishDate: document.getElementById('publishDate').value,
+                content: document.getElementById('content').value,
+                authorGmail: document.getElementById('authorGmail').value,
+                images: uploadedImages,
+            };
+
+            try {
+                const res = await fetch(`${getBase()}/publications/submit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                const data = await res.json();
+                showResult('submitResult', data);
+
+                // Auto-fetch publications after submit
+                if (res.ok) await getPublications();
+            } catch (err) {
+                showResult('submitResult', { error: err.message });
+            }
+        }
+
+        // ── Get Publications ──
+        async function getPublications() {
+            try {
+                const res = await fetch(`${getBase()}/publications`);
+                const data = await res.json();
+                showResult('pubsResult', data);
+                renderPublications(data.data || []);
+            } catch (err) {
+                showResult('pubsResult', { error: err.message });
+            }
+        }
+
+        function renderPublications(pubs) {
+            const container = document.getElementById('pubsDisplay');
+            if (!pubs.length) {
+                container.innerHTML = '<p class="pub-empty">No publications yet</p>';
+                return;
+            }
+            container.innerHTML = pubs.map(pub => `
+                <div class="pub-card">
+                    <h3>${escHtml(pub.publishTitle)}</h3>
+                    <div class="pub-meta">
+                        by ${escHtml(pub.author)} · ${escHtml(pub.publishDate)} · ${escHtml(pub.authorGmail)}
+                    </div>
+                    <div class="pub-content">${pub.content}</div>
+                    ${pub.images && pub.images.length ? `
+                        <div class="pub-images">
+                            ${pub.images.map(img => `<img src="${img.url}" alt="publication image" />`).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        function escHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str || '';
+            return div.innerHTML;
+        }
+
+        // ── Get Mentors ──
+        async function getMentors() {
+            try {
+                const res = await fetch(`${getBase()}/mentors`);
+                const data = await res.json();
+                showResult('mentorsResult', data);
+            } catch (err) {
+                showResult('mentorsResult', { error: err.message });
+            }
+        }
+    </script>
+</body>
+</html>
