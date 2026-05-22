@@ -39,22 +39,22 @@ app.get('/', (req: Request, res: Response) => {
                 <ul class="api-list">
                     <li class="api-item">
                         <span class="method get">GET</span>
-                        <span class="path">/publications</span>
+                        <span class="path">/publication</span>
                         <p class="desc">Retrieve all publications, sorted by newest first.</p>
                     </li>
                     <li class="api-item">
                         <span class="method post">POST</span>
-                        <span class="path">/publications/submit</span>
+                        <span class="path">/publication/submit</span>
                         <p class="desc">Submit a new publication. Saves the publication to the database and sends a notification email to the admin. Content can include HTML with embedded image URLs.</p>
                     </li>
                     <li class="api-item">
                         <span class="method post">POST</span>
-                        <span class="path">/publications/upload-image</span>
+                        <span class="path">/publication/upload-image</span>
                         <p class="desc">Upload an image for a publication. Accepts multipart form data with field name "image" (max 5MB). Returns a Cloudinary URL to embed in publication content.</p>
                     </li>
                     <li class="api-item">
                         <span class="method get">GET</span>
-                        <span class="path">/mentors</span>
+                        <span class="path">/mentor</span>
                         <p class="desc">Retrieve the list of all mentors from the mentors database.</p>
                     </li>
                 </ul>
@@ -64,8 +64,8 @@ app.get('/', (req: Request, res: Response) => {
     `);
 });
 
-app.use('/publishcations', publicationRouter);
-app.use('/mentors', mentorRouter);
+app.use('/publication', publicationRouter);
+app.use('/mentor', mentorRouter);
 
 const startServer = async () => {
     await connectDB();
