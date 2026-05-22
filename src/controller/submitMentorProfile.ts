@@ -2,22 +2,54 @@ import { Request, Response } from 'express';
 import PendingMentorProfile from '../model/mentorProfileModel.js';
 // import { sendMentorProfileEmail } from '../service/emailService.js';
 
+const allowedFields = new Set([
+    'title',
+    'fullName',
+    'department',
+    'phone',
+    'email',
+    'personalWebsite',
+    'orcid',
+    'researchGate',
+    'googleScholar',
+    'researchAreas',
+    'researchTopics',
+    'note',
+    'avatarImage',
+]);
+
+const getStringValue = (body: Record<string, unknown>, key: string): string => {
+    const value = body[key];
+    return typeof value === 'string' ? value.trim() : '';
+};
+
 const submitMentorProfile = async (req: Request, res: Response): Promise<void> => {
     try {
-        const {
-            title,
-            fullName,
-            department,
-            email,
-            personalWebsite,
-            orcid,
-            researchGate,
-            googleScholar,
-            researchAreas,
-            researchTopics,
-            note,
-            avatar,
-        } = req.body;
+        const body = req.body as Record<string, unknown>;
+
+        const unknownFields = Object.keys(body).filter((key) => !allowedFields.has(key));
+        if (unknownFields.length > 0) {
+            res.status(400).json({
+                message: 'Only camelCase mentor profile fields are allowed',
+                invalidFields: unknownFields,
+                allowedFields: Array.from(allowedFields),
+            });
+            return;
+        }
+
+        const title = getStringValue(body, 'title');
+        const fullName = getStringValue(body, 'fullName');
+        const department = getStringValue(body, 'department');
+        const phone = getStringValue(body, 'phone');
+        const email = getStringValue(body, 'email');
+        const personalWebsite = getStringValue(body, 'personalWebsite');
+        const orcid = getStringValue(body, 'orcid');
+        const researchGate = getStringValue(body, 'researchGate');
+        const googleScholar = getStringValue(body, 'googleScholar');
+        const researchAreas = getStringValue(body, 'researchAreas');
+        const researchTopics = getStringValue(body, 'researchTopics');
+        const note = getStringValue(body, 'note');
+        const avatarImage = getStringValue(body, 'avatarImage');
 
         if (!title || !fullName || !email) {
             res.status(400).json({ message: 'Missing required fields (title, fullName, email)' });
@@ -30,16 +62,17 @@ const submitMentorProfile = async (req: Request, res: Response): Promise<void> =
             {
                 title,
                 fullName,
-                department: department || '',
+                department,
+                phone,
                 email,
-                personalWebsite: personalWebsite || '',
-                orcid: orcid || '',
-                researchGate: researchGate || '',
-                googleScholar: googleScholar || '',
-                researchAreas: researchAreas || '',
-                researchTopics: researchTopics || '',
-                note: note || '',
-                avatar: avatar || null,
+                personalWebsite,
+                orcid,
+                researchGate,
+                googleScholar,
+                researchAreas,
+                researchTopics,
+                note,
+                avatarImage,
                 feedback: '',
             },
             { upsert: true, new: true, setDefaultsOnInsert: true }
@@ -50,6 +83,7 @@ const submitMentorProfile = async (req: Request, res: Response): Promise<void> =
         //     title,
         //     fullName,
         //     department,
+        //     phone,
         //     email,
         //     personalWebsite,
         //     orcid,
@@ -58,7 +92,7 @@ const submitMentorProfile = async (req: Request, res: Response): Promise<void> =
         //     researchAreas,
         //     researchTopics,
         //     note,
-        //     avatar,
+        //     avatarImage,
         // }).catch((err) => console.error('Failed to send mentor profile notification email:', err));
 
         res.status(201).json({ message: 'Mentor profile submitted successfully', data: saved });

@@ -98,6 +98,16 @@ app.get('/', (req: Request, res: Response) => {
                         <p class="desc">Retrieve the list of all mentors from the mentors database.</p>
                     </li>
                     <li class="api-item">
+                        <span class="method post">POST</span>
+                        <span class="path">/mentor/submit</span>
+                        <p class="desc">Submit or update a pending mentor profile.</p>
+                    </li>
+                    <li class="api-item">
+                        <span class="method post">POST</span>
+                        <span class="path">/mentor/upload-avatar</span>
+                        <p class="desc">Upload a mentor avatar image. Accepts multipart form data with field name "avatar" (max 5MB).</p>
+                    </li>
+                    <li class="api-item">
                         <span class="method get">GET</span>
                         <span class="path">/news</span>
                         <p class="desc">Retrieve all news articles, sorted by newest first.</p>
@@ -114,13 +124,14 @@ app.use('/mentor', mentorRouter);
 app.use('/news', newsRouter);
 
 const startServer = async () => {
-    await connectDB();
-
-    app.listen(3000, () => {
+    app.listen(PORT, () => {
         console.log('\n');
         console.log('Welcome to SRC2026 backend!');
+        console.log(`Server is running at http://localhost:${PORT}`);
         console.log('\n');
     });
+
+    await connectDB();
 };
 
 startServer();

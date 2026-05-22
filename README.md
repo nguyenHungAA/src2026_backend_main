@@ -68,19 +68,25 @@ The raw OpenAPI document is available at:
 http://localhost:3000/openapi.json
 ```
 
-Use the **Try it out** button in Swagger UI to call endpoints such as `GET /publications`, `POST /publications/submit`, `POST /publications/upload-image`, `POST /publications/delete-image`, and `GET /mentors`.
+Use the **Try it out** button in Swagger UI to call endpoints such as `GET /publication`, `GET /publication/{id}`, `POST /publication/submit`, `POST /publication/upload-image`, `POST /publication/delete-image`, `GET /mentor`, `POST /mentor/submit`, `POST /mentor/upload-avatar`, and `GET /news`.
 
 ## 📦 API Endpoints
 
 ### Get Publications
 
-**GET** `/publications`
+**GET** `/publication`
 
 Retrieve all publications, sorted by newest first.
 
+### Get Publication By ID
+
+**GET** `/publication/{id}`
+
+Retrieve one publication by MongoDB ObjectId.
+
 ### Submit Publication
 
-**POST** `/publications/submit`
+**POST** `/publication/submit`
 
 Submit a new publication.
 
@@ -105,7 +111,7 @@ Submit a new publication.
 
 ### Get Mentors
 
-**GET** `/mentors`
+**GET** `/mentor`
 
 Retrieve all mentors.
 
@@ -125,7 +131,7 @@ Retrieve all mentors.
 
 ### Upload Image
 
-**POST** `/publications/upload-image`
+**POST** `/publication/upload-image`
 
 Upload an image for a publication. Send multipart form data with the field name `image`.
 
@@ -142,7 +148,7 @@ Upload an image for a publication. Send multipart form data with the field name 
 
 ### Delete Image
 
-**POST** `/publications/delete-image`
+**POST** `/publication/delete-image`
 
 Delete an uploaded image from Cloudinary.
 
@@ -159,3 +165,51 @@ Delete an uploaded image from Cloudinary.
     "message": "Image deleted successfully"
 }
 ```
+
+### Submit Mentor Profile
+
+**POST** `/mentor/submit`
+
+Submit or update a pending mentor profile. Existing pending profiles are matched by `email`. The JSON keys must be camelCase.
+
+**Request Body:**
+```json
+{
+    "title": "Dr.",
+    "fullName": "Mentor Name",
+    "department": "Computer Science",
+    "phone": "+84 901 234 567",
+    "email": "mentor@example.com",
+    "personalWebsite": "https://example.com",
+    "orcid": "0000-0000-0000-0000",
+    "researchGate": "https://www.researchgate.net/profile/example",
+    "googleScholar": "https://scholar.google.com/citations?user=example",
+    "researchAreas": "Artificial Intelligence",
+    "researchTopics": "Machine learning, computer vision",
+    "note": "Available for undergraduate research mentoring.",
+    "avatarImage": "https://drive.google.com/file/d/example/view"
+}
+```
+
+### Upload Mentor Avatar
+
+**POST** `/mentor/upload-avatar`
+
+Upload a mentor avatar image. Send multipart form data with the field name `avatar`.
+
+**Response:**
+```json
+{
+    "message": "Avatar uploaded successfully",
+    "data": {
+        "url": "https://res.cloudinary.com/example/image/upload/avatar.jpg",
+        "publicId": "src2026/mentors/avatar"
+    }
+}
+```
+
+### Get News
+
+**GET** `/news`
+
+Retrieve all news articles, sorted by newest first.
