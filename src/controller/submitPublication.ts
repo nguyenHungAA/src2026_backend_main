@@ -4,7 +4,11 @@ import sendPublicationEmail from '../service/emailService.js';
 
 const submitPublication = async (req: Request, res: Response): Promise<void> => {
     try {
+<<<<<<< HEAD
         const { publishTitle, author, publishDate, content, authorGmail, images } = req.body;
+=======
+        const { publishTitle, author, publishDate, content, authorGmail } = req.body;
+>>>>>>> refs/remotes/origin/main
 
         if (!publishTitle || !author || !publishDate || !content || !authorGmail) {
             res.status(400).json({ message: 'Missing required fields' });
@@ -17,7 +21,10 @@ const submitPublication = async (req: Request, res: Response): Promise<void> => 
             publishDate,
             content,
             authorGmail,
+<<<<<<< HEAD
             images: images || [],
+=======
+>>>>>>> refs/remotes/origin/main
         });
 
         const saved = await newPublication.save();
