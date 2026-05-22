@@ -67,10 +67,14 @@ app.get('/', (req: Request, res: Response) => {
 app.use('/publications', publicationRouter);
 app.use('/mentors', mentorRouter);
 
-connectDB();
+const startServer = async () => {
+    await connectDB();
 
-app.listen(3000, () => {
-    console.log('\n');
-    console.log('Welcome to SRC2026 backend!');
-    console.log('\n');
-});
+    app.listen(3000, () => {
+        console.log('\n');
+        console.log('Welcome to SRC2026 backend!');
+        console.log('\n');
+    });
+};
+
+startServer();

@@ -15,7 +15,7 @@ const uploadImage = async (req: Request, res: Response): Promise<void> => {
                     folder: 'src2026/publications',
                     resource_type: 'image',
                     transformation: [
-                        { width: 1200, crop: 'limit' },  // max width 1200px, keep aspect ratio
+                        { width: 800, height: 600, crop: 'fit' },  // fit within 800x600, keep entire image
                         { quality: 'auto', fetch_format: 'auto' },  // auto optimize
                     ],
                 },
