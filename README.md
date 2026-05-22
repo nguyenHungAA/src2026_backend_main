@@ -48,7 +48,35 @@ pnpm run dev
 
 The server will start on `http://localhost:3000`.
 
+If port `3000` is already in use, start the server on another port:
+
+```powershell
+$env:PORT=3001; pnpm run dev
+```
+
+## 🧪 Swagger Mock API
+
+After starting the server, open Swagger UI to interact with the API from your browser:
+
+```text
+http://localhost:3000/swagger
+```
+
+The raw OpenAPI document is available at:
+
+```text
+http://localhost:3000/openapi.json
+```
+
+Use the **Try it out** button in Swagger UI to call endpoints such as `GET /publications`, `POST /publications/submit`, `POST /publications/upload-image`, `POST /publications/delete-image`, and `GET /mentors`.
+
 ## 📦 API Endpoints
+
+### Get Publications
+
+**GET** `/publications`
+
+Retrieve all publications, sorted by newest first.
 
 ### Submit Publication
 
@@ -92,5 +120,42 @@ Retrieve all mentors.
             "email": "[EMAIL_ADDRESS]"
         }
     ]
+}
+```
+
+### Upload Image
+
+**POST** `/publications/upload-image`
+
+Upload an image for a publication. Send multipart form data with the field name `image`.
+
+**Response:**
+```json
+{
+    "message": "Image uploaded successfully",
+    "data": {
+        "url": "https://res.cloudinary.com/example/image/upload/sample.jpg",
+        "publicId": "src2026/publications/sample"
+    }
+}
+```
+
+### Delete Image
+
+**POST** `/publications/delete-image`
+
+Delete an uploaded image from Cloudinary.
+
+**Request Body:**
+```json
+{
+    "publicId": "src2026/publications/sample"
+}
+```
+
+**Response:**
+```json
+{
+    "message": "Image deleted successfully"
 }
 ```
