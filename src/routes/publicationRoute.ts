@@ -2,6 +2,7 @@ import express, { Router } from 'express'
 import multer from 'multer'
 import submitPublication from '../controller/submitPublication.js'
 import getPublications from '../controller/getPublications.js'
+import getPublicationById from '../controller/getPublicationById.js'
 import uploadImage from '../controller/uploadImage.js'
 import deleteImage from '../controller/deleteImage.js'
 
@@ -21,6 +22,7 @@ const upload = multer({
 });
 
 router.get('/', getPublications);
+router.get('/:id', getPublicationById);
 router.post('/submit', submitPublication);
 router.post('/upload-image', upload.single('image'), uploadImage);
 router.post('/delete-image', deleteImage);
