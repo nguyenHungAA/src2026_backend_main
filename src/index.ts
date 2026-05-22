@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express'
 import cors from 'cors'
 import publicationRouter from './routes/publicationRoute.js'
 import mentorRouter from './routes/mentorRoute.js'
+import newsRouter from './routes/newsRoute.js'
 import connectDB from './config/db.js'
 
 const app = express();
@@ -57,6 +58,11 @@ app.get('/', (req: Request, res: Response) => {
                         <span class="path">/mentor</span>
                         <p class="desc">Retrieve the list of all mentors from the mentors database.</p>
                     </li>
+                    <li class="api-item">
+                        <span class="method get">GET</span>
+                        <span class="path">/news</span>
+                        <p class="desc">Retrieve all news articles, sorted by newest first.</p>
+                    </li>
                 </ul>
             </div>
         </body>
@@ -66,6 +72,7 @@ app.get('/', (req: Request, res: Response) => {
 
 app.use('/publication', publicationRouter);
 app.use('/mentor', mentorRouter);
+app.use('/news', newsRouter);
 
 const startServer = async () => {
     await connectDB();

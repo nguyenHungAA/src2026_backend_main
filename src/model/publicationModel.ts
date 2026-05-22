@@ -6,10 +6,25 @@ export interface IPublicationImage {
 }
 
 export interface IPublication extends Document {
-    publishTitle: string;
+    // BibTeX metadata
+    entryType: string;
+    citationKey: string;
+    title: string;
     author: string;
-    publishDate: string;
-    content: string;
+    journal: string;
+    booktitle: string;
+    year: string;
+    volume: string;
+    number: string;
+    pages: string;
+    doi: string;
+    abstract: string;
+    keywords: string;
+    publisher: string;
+    url: string;
+    // Raw BibTeX for reference
+    rawBibtex: string;
+    // Submission metadata
     authorGmail: string;
     feedback: string;
     images: IPublicationImage[];
@@ -17,10 +32,22 @@ export interface IPublication extends Document {
 
 const publicationSchema = new Schema<IPublication>(
     {
-        publishTitle: { type: String, required: true },
+        entryType: { type: String, default: '' },
+        citationKey: { type: String, default: '' },
+        title: { type: String, required: true },
         author: { type: String, required: true },
-        publishDate: { type: String, required: true },
-        content: { type: String, required: true },
+        journal: { type: String, default: '' },
+        booktitle: { type: String, default: '' },
+        year: { type: String, default: '' },
+        volume: { type: String, default: '' },
+        number: { type: String, default: '' },
+        pages: { type: String, default: '' },
+        doi: { type: String, default: '' },
+        abstract: { type: String, default: '' },
+        keywords: { type: String, default: '' },
+        publisher: { type: String, default: '' },
+        url: { type: String, default: '' },
+        rawBibtex: { type: String, default: '' },
         authorGmail: { type: String, required: true },
         feedback: { type: String, default: '' },
         images: [
