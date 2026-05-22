@@ -64,7 +64,7 @@ app.get('/', (req: Request, res: Response) => {
     `);
 });
 
-app.use('/publications', publicationRouter);
+app.use('/publishcations', publicationRouter);
 app.use('/mentors', mentorRouter);
 
 const startServer = async () => {
