@@ -35,9 +35,12 @@ MONGO_URI="mongodb+srv://<user>:<password>@<cluster-url>/?appName=publication"
 GMAIL_USER="your-email@gmail.com"
 GMAIL_APP_PASSWORD="your-app-password"
 NOTIFY_EMAIL="[EMAIL_ADDRESS]"
+BACKEND_URL="http://localhost:3000"
 ```
 
 **Note**: For Gmail App Password, you need to enable 2-Step Verification and generate an App Password.
+Set `BACKEND_URL` to the public backend URL in production so signup confirmation
+links open the deployed API.
 
 ## 🏃‍♂️ Running the Server
 

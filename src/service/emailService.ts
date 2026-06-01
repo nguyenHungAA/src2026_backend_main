@@ -36,7 +36,7 @@ interface MentorProfileEmailData {
 }
 
 const sendSignupConfirmationEmail = async (email: string, token: string): Promise<void> => {
-    const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:3000';
+    const backendUrl = (process.env.BACKEND_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
     const mailOptions = {
         from: process.env.GMAIL_USER,
         to: email,
@@ -44,7 +44,7 @@ const sendSignupConfirmationEmail = async (email: string, token: string): Promis
         html: `
             <h2>Welcome to ResFes 2026!</h2>
             <p>Thank you for signing up. Please confirm your email address by clicking the link below:</p>
-            <a href="${backendUrl}/auth/confirm-email?token=${token}" style="display: inline-block; padding: 10px 20px; background-color: #2563eb; color: #fff; text-decoration: none; border-radius: 4px;">Confirm Email</a>
+            <a href="${backendUrl}/auth/confirm-email?token=${encodeURIComponent(token)}" style="display: inline-block; padding: 10px 20px; background-color: #2563eb; color: #fff; text-decoration: none; border-radius: 4px;">Confirm Email</a>
             <p>If you did not sign up for this account, please ignore this email.</p>
         `,
     };
