@@ -38,3 +38,7 @@ coverage/
 .Trashes
 ehthumbs.db
 Thumbs.db 
+
+
+#local files
+package-lock.json

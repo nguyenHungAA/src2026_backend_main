@@ -30,6 +30,18 @@ export interface IPublication extends Document {
     images: IPublicationImage[];
 }
 
+export interface IPendingPublication extends Document {
+    publishTitle: string;
+    author: string;
+    publishDate: string;
+    content: string;
+    authorGmail: string;
+    doi: string;
+    journal: string;
+    feedback: string;
+    images: IPublicationImage[];
+}
+
 const publicationSchema = new Schema<IPublication>(
     {
         entryType: { type: String, default: '' },
@@ -60,6 +72,32 @@ const publicationSchema = new Schema<IPublication>(
     { timestamps: true }
 );
 
+const pendingPublicationSchema = new Schema<IPendingPublication>(
+    {
+        publishTitle: { type: String, required: true },
+        author: { type: String, required: true },
+        publishDate: { type: String, required: true },
+        content: { type: String, required: true },
+        authorGmail: { type: String, required: true },
+        doi: { type: String, default: '' },
+        journal: { type: String, default: '' },
+        feedback: { type: String, default: '' },
+        images: [
+            {
+                url: { type: String, required: true },
+                publicId: { type: String, required: true },
+            },
+        ],
+    },
+    { timestamps: true }
+);
+
 const Publication = mongoose.model<IPublication>('Publication', publicationSchema, 'publicationCollection');
+
+export const PendingPublication = mongoose.model<IPendingPublication>(
+    'PendingPublication',
+    pendingPublicationSchema,
+    'pendingPublicationCollection'
+);
 
 export default Publication;

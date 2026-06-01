@@ -4,6 +4,7 @@ export interface IMentorProfile extends Document {
     title: string;
     fullName: string;
     department: string;
+    phone: string;
     email: string;
     personalWebsite: string;
     orcid: string;
@@ -12,7 +13,7 @@ export interface IMentorProfile extends Document {
     researchAreas: string;
     researchTopics: string;
     note: string;
-    avatar: { url: string; publicId: string } | null;
+    avatarImage: string;
     feedback: string;
 }
 
@@ -21,6 +22,7 @@ const mentorProfileSchema = new Schema<IMentorProfile>(
         title: { type: String, required: true },
         fullName: { type: String, required: true },
         department: { type: String, default: '' },
+        phone: { type: String, default: '' },
         email: { type: String, required: true },
         personalWebsite: { type: String, default: '' },
         orcid: { type: String, default: '' },
@@ -29,13 +31,7 @@ const mentorProfileSchema = new Schema<IMentorProfile>(
         researchAreas: { type: String, default: '' },
         researchTopics: { type: String, default: '' },
         note: { type: String, default: '' },
-        avatar: {
-            type: {
-                url: { type: String, required: true },
-                publicId: { type: String, required: true },
-            },
-            default: null,
-        },
+        avatarImage: { type: String, default: '' },
         feedback: { type: String, default: '' },
     },
     { timestamps: true }

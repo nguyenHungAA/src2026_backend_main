@@ -5,11 +5,49 @@ import mentorRouter from './routes/mentorRoute.js'
 import newsRouter from './routes/newsRoute.js'
 import authRouter from './routes/authRoute.js'
 import connectDB from './config/db.js'
+import swaggerDocument from './swagger.js'
 
 const app = express();
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(cors());
 app.use(express.json());
+
+app.get('/openapi.json', (_req: Request, res: Response) => {
+    res.json(swaggerDocument);
+});
+
+app.get('/swagger', (_req: Request, res: Response) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>SRC2026 Backend Swagger</title>
+            <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+            <style>
+                body { margin: 0; background: #f8fafc; }
+                .swagger-ui .topbar { display: none; }
+            </style>
+        </head>
+        <body>
+            <div id="swagger-ui"></div>
+            <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+            <script>
+                window.onload = function () {
+                    window.ui = SwaggerUIBundle({
+                        url: '/openapi.json',
+                        dom_id: '#swagger-ui',
+                        deepLinking: true,
+                        persistAuthorization: true,
+                    });
+                };
+            </script>
+        </body>
+        </html>
+    `);
+});
 
 app.get('/', (req: Request, res: Response) => {
     res.send(`
@@ -38,6 +76,7 @@ app.get('/', (req: Request, res: Response) => {
             <div class="container">
                 <h1>🚀 SRC2026 Backend</h1>
                 <p class="subtitle">Welcome! Here are the available API endpoints:</p>
+                <p class="subtitle"><a href="/swagger" style="color:#93c5fd;">Open Swagger UI</a> to try requests in your browser.</p>
                 <ul class="api-list">
                     <li class="api-item">
                         <span class="method get">GET</span>
@@ -60,6 +99,16 @@ app.get('/', (req: Request, res: Response) => {
                         <p class="desc">Retrieve the list of all mentors from the mentors database.</p>
                     </li>
                     <li class="api-item">
+                        <span class="method post">POST</span>
+                        <span class="path">/mentor/submit</span>
+                        <p class="desc">Submit or update a pending mentor profile.</p>
+                    </li>
+                    <li class="api-item">
+                        <span class="method post">POST</span>
+                        <span class="path">/mentor/upload-avatar</span>
+                        <p class="desc">Upload a mentor avatar image. Accepts multipart form data with field name "avatar" (max 5MB).</p>
+                    </li>
+                    <li class="api-item">
                         <span class="method get">GET</span>
                         <span class="path">/news</span>
                         <p class="desc">Retrieve all news articles, sorted by newest first.</p>
@@ -77,13 +126,14 @@ app.use('/news', newsRouter);
 app.use('/auth', authRouter)
 
 const startServer = async () => {
-    await connectDB();
-
-    app.listen(3000, () => {
+    app.listen(PORT, () => {
         console.log('\n');
         console.log('Welcome to SRC2026 backend!');
+        console.log(`Server is running at http://localhost:${PORT}`);
         console.log('\n');
     });
+
+    await connectDB();
 };
 
 startServer();
