@@ -1,4 +1,10 @@
-import { createHash, randomBytes, scrypt as scryptCallback } from 'node:crypto';
+import {
+    createHash,
+    createHmac,
+    randomBytes,
+    scrypt as scryptCallback,
+    timingSafeEqual,
+} from 'node:crypto';
 import { promisify } from 'node:util';
 import { Request, Response } from 'express';
 import User from '../model/userModel.js';
@@ -15,6 +21,42 @@ const hashPassword = async (password: string): Promise<string> => {
     const salt = randomBytes(16).toString('hex');
     const derivedKey = await scrypt(password, salt, 64) as Buffer;
     return `${salt}:${derivedKey.toString('hex')}`;
+};
+
+const verifyPassword = async (password: string, storedPassword: string): Promise<boolean> => {
+    const [salt, storedKeyHex, ...extraParts] = storedPassword.split(':');
+
+    if (!salt || !storedKeyHex || extraParts.length > 0) {
+        return false;
+    }
+
+    const storedKey = Buffer.from(storedKeyHex, 'hex');
+    if (storedKey.length !== 64) {
+        return false;
+    }
+
+    const derivedKey = await scrypt(password, salt, storedKey.length) as Buffer;
+    return timingSafeEqual(storedKey, derivedKey);
+};
+
+const createAccessToken = (userId: string): string => {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+        throw new Error('JWT_SECRET is not defined in environment variables');
+    }
+
+    const issuedAt = Math.floor(Date.now() / 1000);
+    const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+    const payload = Buffer.from(JSON.stringify({
+        userId,
+        iat: issuedAt,
+        exp: issuedAt + 60 * 60,
+    })).toString('base64url');
+    const signature = createHmac('sha256', secret)
+        .update(`${header}.${payload}`)
+        .digest('base64url');
+
+    return `${header}.${payload}.${signature}`;
 };
 
 const confirmationPage = (title: string, message: string, isSuccess: boolean): string => `
@@ -210,10 +252,40 @@ const confirmEmail = async (req: Request, res: Response): Promise<void> => {
     }
 };
 
-const login = (req: Request, res: Response): void => {
-    // implement login logic
-    // generate and return JWT token
-    res.status(501).json({ message: 'Login is not implemented yet' });
+const login = async (req: Request, res: Response): Promise<void> => {
+    const email = String(req.body.email ?? '').trim().toLowerCase();
+    const password = String(req.body.password ?? '');
+
+    if (!email || !password) {
+        res.status(400).json({ message: 'Email and password are required' });
+        return;
+    }
+
+    try {
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            res.status(401).json({ message: 'Invalid email or password' });
+            return;
+        }
+
+        const isPasswordValid = await verifyPassword(password, user.password);
+        if (!isPasswordValid) {
+            res.status(401).json({ message: 'Invalid email or password' });
+            return;
+        }
+
+        if (!user.isEmailVerified) {
+            res.status(401).json({ message: 'Email not verified' });
+            return;
+        }
+
+        const token = createAccessToken(String(user._id));
+        res.status(200).json({ token });
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ message: 'Could not log in' });
+    }
 };
 
 const forgotPassword = (req: Request, res: Response): void => {
