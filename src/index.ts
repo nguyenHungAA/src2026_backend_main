@@ -3,6 +3,7 @@ import cors from 'cors'
 import publicationRouter from './routes/publicationRoute.js'
 import mentorRouter from './routes/mentorRoute.js'
 import newsRouter from './routes/newsRoute.js'
+import authRouter from './routes/authRoute.js'
 import connectDB from './config/db.js'
 
 const app = express();
@@ -73,6 +74,7 @@ app.get('/', (req: Request, res: Response) => {
 app.use('/publication', publicationRouter);
 app.use('/mentor', mentorRouter);
 app.use('/news', newsRouter);
+app.use('/auth', authRouter)
 
 const startServer = async () => {
     await connectDB();
