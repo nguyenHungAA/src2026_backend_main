@@ -5,7 +5,8 @@ import User from '../model/userModel.js';
 import { sendSignupConfirmationEmail } from '../service/emailService.js';
 
 const scrypt = promisify(scryptCallback);
-const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000 * 60;
+const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000 * 60; // 60 days in milliseconds
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const hashToken = (token: string): string =>
     createHash('sha256').update(token).digest('hex');
@@ -80,25 +81,65 @@ const signup = async (req: Request, res: Response): Promise<void> => {
         return;
     }
 
+    if (!EMAIL_PATTERN.test(email)) {
+        res.status(400).json({ message: 'Enter a valid email address' });
+        return;
+    }
+
     if (password.length < 6) {
         res.status(400).json({ message: 'Password must be at least 6 characters long' });
+        return;
+    }
+
+    if (password.length > 128) {
+        res.status(400).json({ message: 'Password must not exceed 128 characters' });
         return;
     }
 
     try {
         const existingUser = await User.findOne({ email });
 
-        if (existingUser) {
+        if (existingUser?.isEmailVerified) {
             res.status(409).json({ message: 'An account with this email already exists' });
             return;
         }
 
         const confirmationToken = randomBytes(32).toString('hex');
+        const passwordHash = await hashPassword(password);
+        const emailVerificationToken = hashToken(confirmationToken);
+        const emailVerificationExpiresAt = new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS);
+
+        if (existingUser) {
+            const previousPassword = existingUser.password;
+            const previousToken = existingUser.emailVerificationToken;
+            const previousExpiresAt = existingUser.emailVerificationExpiresAt;
+
+            existingUser.password = passwordHash;
+            existingUser.emailVerificationToken = emailVerificationToken;
+            existingUser.emailVerificationExpiresAt = emailVerificationExpiresAt;
+            await existingUser.save();
+
+            try {
+                await sendSignupConfirmationEmail(email, confirmationToken);
+            } catch (error) {
+                existingUser.password = previousPassword;
+                existingUser.emailVerificationToken = previousToken;
+                existingUser.emailVerificationExpiresAt = previousExpiresAt;
+                await existingUser.save();
+                throw error;
+            }
+
+            res.status(200).json({
+                message: 'A new confirmation email has been sent. Check your inbox.',
+            });
+            return;
+        }
+
         const user = await User.create({
             email,
-            password: await hashPassword(password),
-            emailVerificationToken: hashToken(confirmationToken),
-            emailVerificationExpiresAt: new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS),
+            password: passwordHash,
+            emailVerificationToken,
+            emailVerificationExpiresAt,
         });
 
         try {
