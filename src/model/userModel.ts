@@ -27,6 +27,7 @@ const userSchema = new Schema<IUser>(
     { timestamps: true }
 );
 
-const User = mongoose.model<IUser>('users', userSchema, 'usersCollection');
+const usersDb = mongoose.connection.useDb('users');
+const User = usersDb.model<IUser>('User', userSchema, 'usersCollection');
 
 export default User;
