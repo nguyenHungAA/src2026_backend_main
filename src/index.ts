@@ -4,6 +4,7 @@ import publicationRouter from './routes/publicationRoute.js'
 import mentorRouter from './routes/mentorRoute.js'
 import newsRouter from './routes/newsRoute.js'
 import authRouter from './routes/authRoute.js'
+import pageContentRouter from './routes/pageContentRoute.js'
 import connectDB from './config/db.js'
 import swaggerDocument from './swagger.js'
 
@@ -123,7 +124,8 @@ app.get('/', (req: Request, res: Response) => {
 app.use('/publication', publicationRouter);
 app.use('/mentor', mentorRouter);
 app.use('/news', newsRouter);
-app.use('/auth', authRouter)
+app.use('/auth', authRouter);
+app.use('/content', pageContentRouter);
 
 const startServer = async () => {
     app.listen(PORT, () => {
