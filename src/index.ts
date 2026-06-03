@@ -7,6 +7,7 @@ import authRouter from './routes/authRoute.js'
 import pageContentRouter from './routes/pageContentRoute.js'
 import connectDB from './config/db.js'
 import swaggerDocument from './swagger.js'
+import appRouter from './routes/index.js'
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -121,11 +122,7 @@ app.get('/', (req: Request, res: Response) => {
     `);
 });
 
-app.use('/publication', publicationRouter);
-app.use('/mentor', mentorRouter);
-app.use('/news', newsRouter);
-app.use('/auth', authRouter);
-app.use('/content', pageContentRouter);
+app.use('/api/v1/', appRouter);
 
 const startServer = async () => {
     app.listen(PORT, () => {
