@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import News from '../../model/newsModel.js';
 import cloudinary from '../../config/cloudinary.js';
 
@@ -44,8 +45,19 @@ const parseImages = (images: unknown): string[] => {
     return [];
 };
 
+const isMongoConnected = () => mongoose.connection.readyState === 1;
+
+const sendDatabaseUnavailable = (res: Response) => {
+    res.status(503).json({ message: 'Database is not connected. Check MONGO_URI and MongoDB network access.' });
+};
+
 const getNews = async (_req: Request, res: Response): Promise<void> => {
     try {
+        if (!isMongoConnected()) {
+            sendDatabaseUnavailable(res);
+            return;
+        }
+
         const news = await News.find({}).sort({ createdAt: -1 }).lean();
 
         res.status(200).json({ message: 'News fetched successfully', data: news });
@@ -105,6 +117,11 @@ const postNews = async (req: Request, res: Response): Promise<void> => {
 
         if (!title || !date || !author) {
             res.status(400).json({ message: 'Title, date, and author are required' });
+            return;
+        }
+
+        if (!isMongoConnected()) {
+            sendDatabaseUnavailable(res);
             return;
         }
 

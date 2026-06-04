@@ -38,3 +38,27 @@ export const getPageContent = async (_req: Request, res: Response): Promise<void
         res.status(500).json({ message: 'Failed to retrieve page content' });
     }
 };
+
+export const updatePageContent = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { body } = req;
+        const updatedPageContent = await PageContent.findOneAndUpdate(
+            {},
+            { $set: body },
+            { upsert: true, new: true, runValidators: true }
+        ).lean();
+
+        if (!updatedPageContent) {
+            res.status(404).json({ message: 'Page content not found for update' });
+            return;
+        }
+
+        res.status(200).json({
+            message: 'Page content updated successfully',
+            data: updatedPageContent,
+        });
+    } catch (error) {
+        console.error('Error updating page content:', error);
+        res.status(500).json({ message: 'Failed to update page content' });
+    }
+};  
