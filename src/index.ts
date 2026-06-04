@@ -125,14 +125,14 @@ app.get('/', (req: Request, res: Response) => {
 app.use('/api/v1/', appRouter);
 
 const startServer = async () => {
+    await connectDB();
+
     app.listen(PORT, () => {
         console.log('\n');
         console.log('Welcome to SRC2026 backend!');
         console.log(`Server is running at http://localhost:${PORT}`);
         console.log('\n');
     });
-
-    await connectDB();
 };
 
 startServer();

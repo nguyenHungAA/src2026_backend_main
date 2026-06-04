@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import News from '../../model/newsModel.js';
 import cloudinary from '../../config/cloudinary.js';
+import connectDB from '../../config/db.js';
 
 const uploadNewsImage = async (
     file: Express.Multer.File,
@@ -45,7 +46,13 @@ const parseImages = (images: unknown): string[] => {
     return [];
 };
 
-const isMongoConnected = () => mongoose.connection.readyState === 1;
+const ensureMongoConnected = async () => {
+    if (mongoose.connection.readyState !== 1) {
+        await connectDB();
+    }
+
+    return mongoose.connection.readyState === 1;
+};
 
 const sendDatabaseUnavailable = (res: Response) => {
     res.status(503).json({ message: 'Database is not connected. Check MONGO_URI and MongoDB network access.' });
@@ -53,7 +60,7 @@ const sendDatabaseUnavailable = (res: Response) => {
 
 const getNews = async (_req: Request, res: Response): Promise<void> => {
     try {
-        if (!isMongoConnected()) {
+        if (!(await ensureMongoConnected())) {
             sendDatabaseUnavailable(res);
             return;
         }
@@ -120,7 +127,7 @@ const postNews = async (req: Request, res: Response): Promise<void> => {
             return;
         }
 
-        if (!isMongoConnected()) {
+        if (!(await ensureMongoConnected())) {
             sendDatabaseUnavailable(res);
             return;
         }
