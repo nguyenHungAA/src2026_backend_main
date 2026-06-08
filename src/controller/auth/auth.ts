@@ -7,8 +7,8 @@ import {
 } from 'node:crypto';
 import { promisify } from 'node:util';
 import { Request, Response } from 'express';
-import User from '../model/userModel.js';
-import { sendSignupConfirmationEmail } from '../service/emailService.js';
+import User from '../../model/userModel.js';
+import { sendSignupConfirmationEmail } from '../../service/emailService.js';
 
 const scrypt = promisify(scryptCallback);
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000 * 60; // 60 days in milliseconds

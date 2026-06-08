@@ -1,10 +1,11 @@
 import express, { Router } from 'express'
 import multer from 'multer'
-import submitPublication from '../controller/submitPublication.js'
-import getPublications from '../controller/getPublications.js'
-import getPublicationById from '../controller/getPublicationById.js'
+import submitPublication from '../controller/publication/submitPublication.js'
+import getPublications from '../controller/publication/getPublications.js'
+import getPublicationById from '../controller/publication/getPublicationById.js'
 import uploadImage from '../controller/uploadImage.js'
 import deleteImage from '../controller/deleteImage.js'
+import verifyTurnstile from '../middleware/verifyTurnstile.js'
 
 const router: Router = express.Router();
 
@@ -23,7 +24,7 @@ const upload = multer({
 
 router.get('/', getPublications);
 router.get('/:id', getPublicationById);
-router.post('/submit', submitPublication);
+router.post('/submit', verifyTurnstile, submitPublication);
 router.post('/upload-image', upload.single('image'), uploadImage);
 router.post('/delete-image', deleteImage);
 

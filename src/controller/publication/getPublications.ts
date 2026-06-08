@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import Publication from '../model/publicationModel.js';
+import Publication from '../../model/publicationModel.js';
 
 const getPublications = async (req: Request, res: Response): Promise<void> => {
     try {

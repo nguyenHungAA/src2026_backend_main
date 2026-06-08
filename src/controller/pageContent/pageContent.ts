@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { defaultPageContent } from '../data/pageContentData.js';
-import PageContent from '../model/pageConentModel.js';
+import { defaultPageContent } from '../../data/pageContentData.js';
+import PageContent from '../../model/pageConentModel.js';
 
 export const loadDefaultPageContent = async (_req: Request, res: Response): Promise<void> => {
     try {

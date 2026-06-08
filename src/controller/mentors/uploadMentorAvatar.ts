@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import cloudinary from '../config/cloudinary.js';
+import cloudinary from '../../config/cloudinary.js';
 
 const uploadMentorAvatar = async (req: Request, res: Response): Promise<void> => {
     try {

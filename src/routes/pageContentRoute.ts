@@ -1,5 +1,5 @@
 import express, { Router } from 'express'
-import { getPageContent, loadDefaultPageContent, updatePageContent } from '../controller/getPageContent.js';
+import { getPageContent, loadDefaultPageContent, updatePageContent } from '../controller/pageContent/pageContent.js';
 
 const router: Router = express.Router();
 

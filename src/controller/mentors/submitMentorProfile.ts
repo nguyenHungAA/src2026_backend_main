@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import PendingMentorProfile from '../model/mentorProfileModel.js';
+import PendingMentorProfile from '../../model/mentorProfileModel.js';
 // import { sendMentorProfileEmail } from '../service/emailService.js';
 
 const allowedFields = new Set([

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { PendingPublication } from '../model/publicationModel.js';
-import { sendPublicationEmail } from '../service/emailService.js';
+import { PendingPublication } from '../../model/publicationModel.js';
+import { sendPublicationEmail } from '../../service/emailService.js';
 
 const submitPublication = async (req: Request, res: Response): Promise<void> => {
     try {

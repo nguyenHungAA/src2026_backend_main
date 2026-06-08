@@ -1,8 +1,9 @@
 import express, { Router } from 'express'
 import multer from 'multer'
-import getMentors from '../controller/getMentors.js'
-import submitMentorProfile from '../controller/submitMentorProfile.js'
-import uploadMentorAvatar from '../controller/uploadMentorAvatar.js'
+import getMentors from '../controller/mentors/getMentors.js'
+import submitMentorProfile from '../controller/mentors/submitMentorProfile.js'
+import uploadMentorAvatar from '../controller/mentors/uploadMentorAvatar.js'
+import verifyTurnstile from '../middleware/verifyTurnstile.js'
 
 const router: Router = express.Router();
 
@@ -19,7 +20,7 @@ const upload = multer({
 });
 
 router.get('/', getMentors);
-router.post('/submit', submitMentorProfile);
+router.post('/submit', verifyTurnstile, submitMentorProfile);
 router.post('/upload-avatar', upload.single('avatar'), uploadMentorAvatar);
 
 export default router;
