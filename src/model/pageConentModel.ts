@@ -111,7 +111,25 @@ export interface IFooterContent {
     rightsLine: string;
 }
 
+export type PageSectionKind =
+    | 'hero'
+    | 'about'
+    | 'research'
+    | 'awards'
+    | 'regulations'
+    | 'milestones'
+    | 'news'
+    | 'publications'
+    | 'workshops'
+    | 'footer';
+
+export interface IPageLayoutSection {
+    id: PageSectionKind;
+    enabled: boolean;
+}
+
 export interface IPageContent {
+    layout: IPageLayoutSection[];
     hero: IHeroContent;
     about: IAboutContent;
     researchTitle: string;
@@ -148,8 +166,39 @@ const awardTierSchema = new Schema<IAwardTier>(
     { _id: false }
 );
 
+export const pageSectionKinds: PageSectionKind[] = [
+    'hero',
+    'about',
+    'research',
+    'awards',
+    'regulations',
+    'milestones',
+    'news',
+    'publications',
+    'workshops',
+    'footer',
+];
+
+export const defaultPageLayout: IPageLayoutSection[] = pageSectionKinds.map((id) => ({
+    id,
+    enabled: true,
+}));
+
+const pageLayoutSectionSchema = new Schema<IPageLayoutSection>(
+    {
+        id: { type: String, enum: pageSectionKinds, required: true },
+        enabled: { type: Boolean, required: true, default: true },
+    },
+    { _id: false }
+);
+
 const pageContentSchema = new Schema<IPageContent>(
     {
+        layout: {
+            type: [pageLayoutSectionSchema],
+            required: true,
+            default: defaultPageLayout,
+        },
         hero: {
             titleLines: { type: [String], required: true },
             taglinePrimary: { type: String, required: true },

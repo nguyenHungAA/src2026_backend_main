@@ -1,6 +1,10 @@
-import { IPageContent } from "../model/pageConentModel.js";
+import {
+    defaultPageLayout,
+    IPageContent,
+} from "../model/pageConentModel.js";
 
 export const defaultPageContent: IPageContent = {
+    layout: defaultPageLayout,
     hero: {
         titleLines: ["STUDENT", "RESEARCH", "COMPETITION", "2026"],
         taglinePrimary: "RBL in Action, Researchers Ready",

@@ -75,6 +75,34 @@ Use the **Try it out** button in Swagger UI to call endpoints such as `GET /publ
 
 ## 📦 API Endpoints
 
+### Page Content and Layout
+
+**GET** `/api/v1/content`
+
+Retrieve the current competition page content and ordered `layout` configuration.
+
+**PUT** `/api/v1/content`
+
+Update page content. The optional `layout` array controls section order and whether
+each section is enabled.
+
+### Page Content Versions
+
+**GET** `/api/v1/content/versions`
+
+Retrieve up to 50 saved page-content snapshots, newest first.
+
+**POST** `/api/v1/content/versions`
+
+Save an immutable page-content snapshot.
+
+```json
+{
+    "label": "Before final-round announcement",
+    "content": {}
+}
+```
+
 ### Get Publications
 
 **GET** `/publication`
