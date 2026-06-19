@@ -23,6 +23,7 @@ const swaggerDocument = {
         { name: 'Publications', description: 'Publication listing, detail, submission, and media endpoints' },
         { name: 'Mentors', description: 'Mentor directory endpoints' },
         { name: 'News', description: 'News article endpoints' },
+        { name: 'Page Content', description: 'Competition page content, layout, and version history endpoints' },
     ],
     paths: {
         '/': {
@@ -54,6 +55,94 @@ const swaggerDocument = {
                             },
                         },
                     },
+                },
+            },
+        },
+        '/api/v1/content': {
+            get: {
+                tags: ['Page Content'],
+                summary: 'Get competition page content and layout',
+                responses: {
+                    '200': {
+                        description: 'Page content fetched successfully',
+                        content: {
+                            'application/json': {
+                                schema: { type: 'object' },
+                            },
+                        },
+                    },
+                    '404': { $ref: '#/components/responses/NotFound' },
+                    '500': { $ref: '#/components/responses/InternalServerError' },
+                },
+            },
+            put: {
+                tags: ['Page Content'],
+                summary: 'Update competition page content and layout',
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: { type: 'object' },
+                        },
+                    },
+                },
+                responses: {
+                    '200': {
+                        description: 'Page content updated successfully',
+                        content: {
+                            'application/json': {
+                                schema: { type: 'object' },
+                            },
+                        },
+                    },
+                    '500': { $ref: '#/components/responses/InternalServerError' },
+                },
+            },
+        },
+        '/api/v1/content/versions': {
+            get: {
+                tags: ['Page Content'],
+                summary: 'List saved page content versions',
+                responses: {
+                    '200': {
+                        description: 'Saved versions, newest first',
+                        content: {
+                            'application/json': {
+                                schema: { type: 'object' },
+                            },
+                        },
+                    },
+                    '500': { $ref: '#/components/responses/InternalServerError' },
+                },
+            },
+            post: {
+                tags: ['Page Content'],
+                summary: 'Save a page content version snapshot',
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: {
+                                type: 'object',
+                                required: ['content'],
+                                properties: {
+                                    label: { type: 'string' },
+                                    content: { type: 'object' },
+                                },
+                            },
+                        },
+                    },
+                },
+                responses: {
+                    '201': {
+                        description: 'Version snapshot saved successfully',
+                        content: {
+                            'application/json': {
+                                schema: { type: 'object' },
+                            },
+                        },
+                    },
+                    '500': { $ref: '#/components/responses/InternalServerError' },
                 },
             },
         },
