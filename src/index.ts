@@ -12,7 +12,23 @@ import appRouter from './routes/index.js'
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
-app.use(cors());
+const allowedOrigins = (process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+app.set('trust proxy', 1);
+app.use(cors({
+    credentials: true,
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+            return;
+        }
+
+        callback(new Error('Not allowed by CORS'));
+    },
+}));
 app.use(express.json());
 
 app.get('/openapi.json', (_req: Request, res: Response) => {

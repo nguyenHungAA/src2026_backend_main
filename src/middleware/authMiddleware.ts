@@ -59,6 +59,21 @@ const readBearerToken = (authorizationHeader?: string) => {
     return token;
 };
 
+const readCookieToken = (cookieHeader?: string) => {
+    if (!cookieHeader) {
+        return null;
+    }
+
+    const cookies = cookieHeader.split(';').map((cookie) => cookie.trim());
+    const accessTokenCookie = cookies.find((cookie) => cookie.startsWith('accessToken='));
+
+    if (!accessTokenCookie) {
+        return null;
+    }
+
+    return decodeURIComponent(accessTokenCookie.slice('accessToken='.length));
+};
+
 export const authMiddleware = async (
     req: AuthenticatedRequest,
     res: Response,
@@ -70,7 +85,7 @@ export const authMiddleware = async (
         return;
     }
 
-    const token = readBearerToken(req.headers.authorization);
+    const token = readCookieToken(req.headers.cookie) ?? readBearerToken(req.headers.authorization);
     if (!token) {
         unauthorized(res);
         return;

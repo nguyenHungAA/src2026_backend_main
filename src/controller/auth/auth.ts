@@ -9,10 +9,25 @@ import { promisify } from 'node:util';
 import { Request, Response } from 'express';
 import User from '../../model/userModel.js';
 import { sendSignupConfirmationEmail } from '../../service/emailService.js';
+import type { AuthenticatedRequest } from '../../middleware/authMiddleware.js';
 
 const scrypt = promisify(scryptCallback);
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000 * 60; // 60 days in milliseconds
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ACCESS_TOKEN_COOKIE_NAME = 'accessToken';
+const ACCESS_TOKEN_TTL_MS = 60 * 60 * 1000 * 720;
+
+const getAccessTokenCookieOptions = () => {
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    return {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'none' as const : 'lax' as const,
+        maxAge: ACCESS_TOKEN_TTL_MS,
+        path: '/',
+    };
+};
 
 const hashToken = (token: string): string =>
     createHash('sha256').update(token).digest('hex');
@@ -281,15 +296,33 @@ const login = async (req: Request, res: Response): Promise<void> => {
         }
 
         const token = createAccessToken(String(user._id));
-        res.status(200).json({ token });
+        res.cookie(ACCESS_TOKEN_COOKIE_NAME, token, getAccessTokenCookieOptions());
+        res.status(200).json({
+            message: 'Logged in',
+            user: {
+                id: String(user._id),
+                email: user.email,
+                role: user.role,
+            },
+        });
     } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({ message: 'Could not log in' });
     }
 };
 
+const me = (req: AuthenticatedRequest, res: Response): void => {
+    res.status(200).json({ user: req.user });
+};
+
+const logout = (_req: Request, res: Response): void => {
+    const { maxAge: _maxAge, ...cookieOptions } = getAccessTokenCookieOptions();
+    res.clearCookie(ACCESS_TOKEN_COOKIE_NAME, cookieOptions);
+    res.status(200).json({ message: 'Logged out' });
+};
+
 const forgotPassword = (req: Request, res: Response): void => {
     res.status(501).json({ message: 'Forgot password is not implemented yet' });
 };
 
-export { signup, confirmEmail, login, forgotPassword };
+export { signup, confirmEmail, login, me, logout, forgotPassword };
