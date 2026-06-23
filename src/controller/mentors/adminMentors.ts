@@ -1,10 +1,6 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
-import PendingMentorProfile from '../../model/mentorProfileModel.js';
-
-const mentorSchema = new mongoose.Schema({}, { strict: false });
-const mentorsDb = mongoose.connection.useDb('mentorsDb');
-const Mentor = mentorsDb.model('MentorAdminApproval', mentorSchema, 'mentorsCollection');
+import PendingMentorProfile, { MentorProfile } from '../../model/mentorProfileModel.js';
 
 export const getPendingMentors = async (_req: Request, res: Response): Promise<void> => {
     try {
@@ -25,28 +21,35 @@ export const approvePendingMentor = async (req: Request, res: Response): Promise
             return;
         }
 
-        const pendingMentor = await PendingMentorProfile.findById(id).lean();
+        const pendingMentor = await PendingMentorProfile.findById(id);
 
         if (!pendingMentor) {
             res.status(404).json({ message: 'Pending mentor not found' });
             return;
         }
 
-        const pendingRecord = pendingMentor as unknown as {
-            _id: mongoose.Types.ObjectId;
-            __v?: number;
-            createdAt?: Date;
-            updatedAt?: Date;
-            [key: string]: unknown;
-        };
-        const { _id, __v, createdAt, updatedAt, ...mentorData } = pendingRecord;
-        const approvedMentor = await Mentor.findOneAndUpdate(
-            { email: mentorData.email },
-            mentorData,
+        const approvedMentor = await MentorProfile.findOneAndUpdate(
+            { email: pendingMentor.email },
+            {
+                title: pendingMentor.title,
+                fullName: pendingMentor.fullName,
+                department: pendingMentor.department,
+                phone: pendingMentor.phone,
+                email: pendingMentor.email,
+                personalWebsite: pendingMentor.personalWebsite,
+                orcid: pendingMentor.orcid,
+                researchGate: pendingMentor.researchGate,
+                googleScholar: pendingMentor.googleScholar,
+                researchAreas: pendingMentor.researchAreas,
+                researchTopics: pendingMentor.researchTopics,
+                note: pendingMentor.note,
+                avatarImage: pendingMentor.avatarImage,
+                feedback: pendingMentor.feedback,
+            },
             { upsert: true, new: true, setDefaultsOnInsert: true }
         );
 
-        await PendingMentorProfile.deleteOne({ _id });
+        await PendingMentorProfile.deleteOne({ _id: pendingMentor._id });
 
         res.status(200).json({
             message: 'Mentor approved successfully',

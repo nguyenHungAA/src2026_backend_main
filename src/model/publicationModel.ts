@@ -98,9 +98,10 @@ const pendingPublicationSchema = new Schema<IPendingPublication>(
     { timestamps: true }
 );
 
-const Publication = mongoose.model<IPublication>('Publication', publicationSchema, 'publicationCollection');
+const publicationDb = mongoose.connection.useDb('publicationDb');
+const Publication = publicationDb.model<IPublication>('Publication', publicationSchema, 'publicationCollection');
 
-export const PendingPublication = mongoose.model<IPendingPublication>(
+export const PendingPublication = publicationDb.model<IPendingPublication>(
     'PendingPublication',
     pendingPublicationSchema,
     'pendingPublicationCollection'

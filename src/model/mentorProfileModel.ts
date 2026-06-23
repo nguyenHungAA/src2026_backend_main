@@ -38,6 +38,12 @@ const mentorProfileSchema = new Schema<IMentorProfile>(
 );
 
 const mentorsDb = mongoose.connection.useDb('mentorsDb');
+export const MentorProfile = mentorsDb.model<IMentorProfile>(
+    'MentorProfile',
+    mentorProfileSchema,
+    'mentorsCollection'
+);
+
 const PendingMentorProfile = mentorsDb.model<IMentorProfile>(
     'PendingMentorProfile',
     mentorProfileSchema,
