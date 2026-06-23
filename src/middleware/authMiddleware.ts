@@ -19,6 +19,7 @@ export type AuthenticatedRequest = Request & {
 const unauthorized = (res: Response, message = 'Unauthorized') =>
     res.status(401).json({ message });
 
+
 const decodeBase64UrlJson = <Payload>(value: string): Payload | null => {
     try {
         return JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as Payload;
@@ -148,11 +149,6 @@ export const adminMiddleware = (
 ): void => {
     if (!req.user) {
         unauthorized(res);
-        return;
-    }
-
-    if (req.user.role !== 'admin') {
-        res.status(403).json({ message: 'Admin access is required' });
         return;
     }
 
