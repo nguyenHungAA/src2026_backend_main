@@ -6,6 +6,9 @@ export interface IPublicationImage {
 }
 
 export interface IPublication extends Document {
+    publishTitle: string;
+    publishDate: string;
+    content: string;
     // BibTeX metadata
     entryType: string;
     citationKey: string;
@@ -44,6 +47,9 @@ export interface IPendingPublication extends Document {
 
 const publicationSchema = new Schema<IPublication>(
     {
+        publishTitle: { type: String, default: '' },
+        publishDate: { type: String, default: '' },
+        content: { type: String, default: '' },
         entryType: { type: String, default: '' },
         citationKey: { type: String, default: '' },
         title: { type: String, required: true },

@@ -140,3 +140,21 @@ export const authMiddleware = async (
         res.status(500).json({ message: 'Could not authenticate request' });
     }
 };
+
+export const adminMiddleware = (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+): void => {
+    if (!req.user) {
+        unauthorized(res);
+        return;
+    }
+
+    if (req.user.role !== 'admin') {
+        res.status(403).json({ message: 'Admin access is required' });
+        return;
+    }
+
+    next();
+};

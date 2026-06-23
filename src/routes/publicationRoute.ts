@@ -6,6 +6,12 @@ import getPublicationById from '../controller/publication/getPublicationById.js'
 import uploadImage from '../controller/uploadImage.js'
 import deleteImage from '../controller/deleteImage.js'
 import verifyTurnstile from '../middleware/verifyTurnstile.js'
+import {
+    approvePendingPublication,
+    declinePendingPublication,
+    getPendingPublications,
+} from '../controller/publication/adminPublications.js'
+import { adminMiddleware, authMiddleware } from '../middleware/authMiddleware.js'
 
 const router: Router = express.Router();
 
@@ -23,6 +29,9 @@ const upload = multer({
 });
 
 router.get('/', getPublications);
+router.get('/pending', authMiddleware, adminMiddleware, getPendingPublications);
+router.post('/pending/:id/approve', authMiddleware, adminMiddleware, approvePendingPublication);
+router.delete('/pending/:id', authMiddleware, adminMiddleware, declinePendingPublication);
 router.get('/:id', getPublicationById);
 router.post('/submit', verifyTurnstile, submitPublication);
 router.post('/upload-image', upload.single('image'), uploadImage);
