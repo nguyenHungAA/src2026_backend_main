@@ -1,12 +1,15 @@
 import {
+    defaultSectionStyles,
     defaultPageLayout,
     IPageContent,
 } from "../model/pageConentModel.js";
 
 export const defaultPageContent: IPageContent = {
     layout: defaultPageLayout,
+    sectionStyles: defaultSectionStyles,
     hero: {
         titleLines: ["STUDENT", "RESEARCH", "COMPETITION", "2026"],
+        backgroundImageUrl: "",
         taglinePrimary: "RBL in Action, Researchers Ready",
         taglineSecondary: "Triển khai RBL, Triển vọng trong nghiên cứu",
         countdownLabel: "Registration closes 01.06.2026",
@@ -14,12 +17,14 @@ export const defaultPageContent: IPageContent = {
         ctaLabel: "Register Now",
         ctaUrl: "/register",
         partnerLabel: "WE ARE",
+        partnerLogos: [],
         closingLinePrimary: "Empowering minds to turn research into",
         closingLineSecondary: "progress, innovation, and change",
     },
     about: {
         sectionLabel: "ABOUT SRC 2026",
         title: "Research-Based Learning, Real-World Impact",
+        images: [],
         highlightOne: "Research-Based Learning (RBL)",
         paragraphOne: "places students at the center of educational activity, shifting the focus from teacher-centered delivery to student-driven inquiry. Through active research practice, students strengthen core skills in problem definition, data collection, analysis, and evidence-based explanation.",
         highlightTwo: "Student Research Competition 2026",
@@ -275,6 +280,7 @@ export const defaultPageContent: IPageContent = {
             eyebrow: "Workshops",
             title: "Scientific Research Guidance Workshops",
             description: "Huong dan thong tin chuong trinh va pho bien. Neu sinh vien co thac mac co the den Phong Lab de duoc FARPC ho tro.",
+            backgroundImageUrl: "",
             scheduleLabel: "Upcoming workshop",
             date: "22.05.2026",
             note: "Date may change after Preliminary Round",
@@ -289,6 +295,7 @@ export const defaultPageContent: IPageContent = {
         headlineThree: "Join SRC",
         ctaLabel: "Register Now",
         ctaUrl: "/register",
+        logos: [],
         contactHeading: "Contact us",
         facebookLabel: "Follow us on Facebook",
         facebookUrl: "https://www.facebook.com/fpt.resfes",

@@ -154,3 +154,66 @@ export const adminMiddleware = (
 
     next();
 };
+
+export type Permission =
+    | 'dashboard.read'
+    | 'content.read'
+    | 'content.update'
+    | 'content.publish'
+    | 'semesters.manage'
+    | 'news.manage'
+    | 'news.publish'
+    | 'submissions.review'
+    | 'mentors.manage'
+    | 'publications.manage'
+    | 'media.manage'
+    | 'audit.read'
+    | 'users.manage';
+
+const allPermissions: Permission[] = [
+    'dashboard.read',
+    'content.read',
+    'content.update',
+    'content.publish',
+    'semesters.manage',
+    'news.manage',
+    'news.publish',
+    'submissions.review',
+    'mentors.manage',
+    'publications.manage',
+    'media.manage',
+    'audit.read',
+    'users.manage',
+];
+
+const rolePermissions: Record<string, Permission[]> = {
+    super_admin: allPermissions,
+    admin: allPermissions.filter((permission) => permission !== 'users.manage'),
+    editor: ['dashboard.read', 'content.read', 'content.update', 'news.manage', 'media.manage'],
+    reviewer: ['dashboard.read', 'content.read', 'submissions.review', 'news.manage'],
+    contributor: ['dashboard.read', 'content.read', 'content.update', 'news.manage'],
+    viewer: ['dashboard.read', 'content.read'],
+    // Preserve current local behavior until users are migrated to explicit CMS roles.
+    user: allPermissions,
+};
+
+export const hasPermission = (role: string | undefined, permission: Permission): boolean =>
+    (rolePermissions[role || 'user'] ?? rolePermissions.user).includes(permission);
+
+export const requirePermission = (permission: Permission) => (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+): void => {
+    if (!req.user) {
+        unauthorized(res);
+        return;
+    }
+
+    if (!hasPermission(req.user.role, permission)) {
+        res.status(403).json({ message: 'Forbidden' });
+        return;
+    }
+
+    next();
+};

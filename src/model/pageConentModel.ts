@@ -12,6 +12,7 @@ export interface IWorkshopItem {
     eyebrow: string;
     title: string;
     description: string;
+    backgroundImageUrl: string;
     scheduleLabel: string;
     date: string;
     note: string;
@@ -22,6 +23,7 @@ export interface IWorkshopItem {
 
 export interface IHeroContent {
     titleLines: string[];
+    backgroundImageUrl: string;
     taglinePrimary: string;
     taglineSecondary: string;
     countdownLabel: string;
@@ -29,6 +31,7 @@ export interface IHeroContent {
     ctaLabel: string;
     ctaUrl: string;
     partnerLabel: string;
+    partnerLogos: IPageImageItem[];
     closingLinePrimary: string;
     closingLineSecondary: string;
 }
@@ -36,6 +39,7 @@ export interface IHeroContent {
 export interface IAboutContent {
     sectionLabel: string;
     title: string;
+    images: IPageImageItem[];
     highlightOne: string;
     paragraphOne: string;
     highlightTwo: string;
@@ -43,9 +47,27 @@ export interface IAboutContent {
     paragraphThree: string;
 }
 
+export interface IPageImageItem {
+    id: number;
+    url: string;
+    alt: string;
+}
+
+export type ResearchIconKey =
+    | 'code'
+    | 'chip'
+    | 'design'
+    | 'business'
+    | 'language'
+    | 'science'
+    | 'robot'
+    | 'database'
+    | 'globe'
+    | 'leaf';
+
 export interface IResearchFieldItem {
     id: number;
-    icon: 'code' | 'chip' | 'design' | 'business' | 'language';
+    icon: ResearchIconKey;
     title: string;
     accordionItems: string[];
     carouselItems: string[];
@@ -100,6 +122,7 @@ export interface IFooterContent {
     headlineThree: string;
     ctaLabel: string;
     ctaUrl: string;
+    logos: IPageImageItem[];
     contactHeading: string;
     facebookLabel: string;
     facebookUrl: string;
@@ -128,8 +151,16 @@ export interface IPageLayoutSection {
     enabled: boolean;
 }
 
+export interface IPageSectionStyle {
+    id: PageSectionKind;
+    backgroundColor: string;
+    textColor: string;
+    accentColor: string;
+}
+
 export interface IPageContent {
     layout: IPageLayoutSection[];
+    sectionStyles: IPageSectionStyle[];
     hero: IHeroContent;
     about: IAboutContent;
     researchTitle: string;
@@ -166,6 +197,15 @@ const awardTierSchema = new Schema<IAwardTier>(
     { _id: false }
 );
 
+const pageImageSchema = new Schema<IPageImageItem>(
+    {
+        id: { type: Number, required: true },
+        url: { type: String, required: true },
+        alt: { type: String, default: '' },
+    },
+    { _id: false }
+);
+
 export const pageSectionKinds: PageSectionKind[] = [
     'hero',
     'about',
@@ -184,10 +224,46 @@ export const defaultPageLayout: IPageLayoutSection[] = pageSectionKinds.map((id)
     enabled: true,
 }));
 
+export const researchIconKeys: ResearchIconKey[] = [
+    'code',
+    'chip',
+    'design',
+    'business',
+    'language',
+    'science',
+    'robot',
+    'database',
+    'globe',
+    'leaf',
+];
+
+export const defaultSectionStyles: IPageSectionStyle[] = [
+    { id: 'hero', backgroundColor: '#000000', textColor: '#ffffff', accentColor: '#f97316' },
+    { id: 'about', backgroundColor: '#fffbeb', textColor: '#111827', accentColor: '#f97316' },
+    { id: 'research', backgroundColor: '#fffbeb', textColor: '#111827', accentColor: '#f97316' },
+    { id: 'awards', backgroundColor: '#000000', textColor: '#ffffff', accentColor: '#facc15' },
+    { id: 'regulations', backgroundColor: '#fffbeb', textColor: '#111827', accentColor: '#f97316' },
+    { id: 'milestones', backgroundColor: '#000000', textColor: '#ffffff', accentColor: '#f97316' },
+    { id: 'news', backgroundColor: '#ffffff', textColor: '#111827', accentColor: '#2563eb' },
+    { id: 'publications', backgroundColor: '#ffffff', textColor: '#111827', accentColor: '#0d9488' },
+    { id: 'workshops', backgroundColor: '#ffffff', textColor: '#111827', accentColor: '#f97316' },
+    { id: 'footer', backgroundColor: '#262626', textColor: '#f5f5f5', accentColor: '#f97316' },
+];
+
 const pageLayoutSectionSchema = new Schema<IPageLayoutSection>(
     {
         id: { type: String, enum: pageSectionKinds, required: true },
         enabled: { type: Boolean, required: true, default: true },
+    },
+    { _id: false }
+);
+
+const pageSectionStyleSchema = new Schema<IPageSectionStyle>(
+    {
+        id: { type: String, enum: pageSectionKinds, required: true },
+        backgroundColor: { type: String, required: true },
+        textColor: { type: String, required: true },
+        accentColor: { type: String, required: true },
     },
     { _id: false }
 );
@@ -199,8 +275,14 @@ const pageContentSchema = new Schema<IPageContent>(
             required: true,
             default: defaultPageLayout,
         },
+        sectionStyles: {
+            type: [pageSectionStyleSchema],
+            required: true,
+            default: defaultSectionStyles,
+        },
         hero: {
             titleLines: { type: [String], required: true },
+            backgroundImageUrl: { type: String, default: '' },
             taglinePrimary: { type: String, required: true },
             taglineSecondary: { type: String, required: true },
             countdownLabel: { type: String, required: true },
@@ -208,12 +290,14 @@ const pageContentSchema = new Schema<IPageContent>(
             ctaLabel: { type: String, required: true },
             ctaUrl: { type: String, required: true },
             partnerLabel: { type: String, required: true },
+            partnerLogos: { type: [pageImageSchema], default: [] },
             closingLinePrimary: { type: String, required: true },
             closingLineSecondary: { type: String, required: true },
         },
         about: {
             sectionLabel: { type: String, required: true },
             title: { type: String, required: true },
+            images: { type: [pageImageSchema], default: [] },
             highlightOne: { type: String, required: true },
             paragraphOne: { type: String, required: true },
             highlightTwo: { type: String, required: true },
@@ -227,7 +311,7 @@ const pageContentSchema = new Schema<IPageContent>(
                 id: { type: Number, required: true },
                 icon: {
                     type: String,
-                    enum: ['code', 'chip', 'design', 'business', 'language'],
+                    enum: researchIconKeys,
                     required: true,
                 },
                 title: { type: String, required: true },
@@ -301,6 +385,7 @@ const pageContentSchema = new Schema<IPageContent>(
                 eyebrow: { type: String, required: true },
                 title: { type: String, required: true },
                 description: { type: String, required: true },
+                backgroundImageUrl: { type: String, default: '' },
                 scheduleLabel: { type: String, required: true },
                 date: { type: String, required: true },
                 note: { type: String, required: true },
@@ -315,6 +400,7 @@ const pageContentSchema = new Schema<IPageContent>(
             headlineThree: { type: String, required: true },
             ctaLabel: { type: String, required: true },
             ctaUrl: { type: String, required: true },
+            logos: { type: [pageImageSchema], default: [] },
             contactHeading: { type: String, required: true },
             facebookLabel: { type: String, required: true },
             facebookUrl: { type: String, required: true },

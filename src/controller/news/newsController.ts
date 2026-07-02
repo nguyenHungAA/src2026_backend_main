@@ -46,6 +46,26 @@ const parseImages = (images: unknown): string[] => {
     return [];
 };
 
+const parseTags = (tags: unknown): string[] => {
+    if (Array.isArray(tags)) {
+        return tags.filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0);
+    }
+
+    if (typeof tags === 'string' && tags.trim().length > 0) {
+        return tags.split(',').map((tag) => tag.trim()).filter(Boolean);
+    }
+
+    return [];
+};
+
+const readBoolean = (value: unknown): boolean => value === true || value === 'true';
+
+const readOptionalDate = (value: unknown): Date | undefined => {
+    if (typeof value !== 'string' || !value.trim()) return undefined;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? undefined : date;
+};
+
 const ensureMongoConnected = async () => {
     if (mongoose.connection.readyState !== 1) {
         await connectDB();
@@ -146,8 +166,26 @@ const postNewsThumbNailImage = async (req: Request, res: Response): Promise<void
 
 const postNews = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { title, description, thumbNailImage, date, content, author } = req.body;
+        const {
+            title,
+            slug,
+            description,
+            summary,
+            thumbNailImage,
+            date,
+            content,
+            body,
+            author,
+            coverImageId,
+            coverImageUrl,
+            status,
+            category,
+            seoTitle,
+            seoDescription,
+            semesterId,
+        } = req.body;
         let images = parseImages(req.body.images);
+        const tags = parseTags(req.body.tags);
         let resolvedThumbNailImage = typeof thumbNailImage === 'string' ? thumbNailImage.trim() : '';
 
         if (!title || !date || !author) {
@@ -177,12 +215,27 @@ const postNews = async (req: Request, res: Response): Promise<void> => {
 
         const news = new News({
             title,
+            slug,
             description: description || '',
+            summary: summary || description || '',
             ...(resolvedThumbNailImage ? { thumbNailImage: resolvedThumbNailImage } : {}),
             ...(images.length > 0 ? { images } : {}),
             date,
             content: content || '',
+            body: body || content || '',
             author,
+            coverImageId,
+            coverImageUrl: coverImageUrl || resolvedThumbNailImage,
+            status: status || 'published',
+            category,
+            tags,
+            isPinned: readBoolean(req.body.isPinned),
+            isFeatured: readBoolean(req.body.isFeatured),
+            seoTitle,
+            seoDescription,
+            publishedAt: readOptionalDate(req.body.publishedAt),
+            scheduledFor: readOptionalDate(req.body.scheduledFor),
+            semesterId,
         });
 
         await news.save();
@@ -196,8 +249,26 @@ const postNews = async (req: Request, res: Response): Promise<void> => {
 const updateNews = async (req: Request, res: Response): Promise<void> => {
     try {
         const id = String(req.params.id ?? '');
-        const { title, description, thumbNailImage, date, content, author } = req.body;
+        const {
+            title,
+            slug,
+            description,
+            summary,
+            thumbNailImage,
+            date,
+            content,
+            body,
+            author,
+            coverImageId,
+            coverImageUrl,
+            status,
+            category,
+            seoTitle,
+            seoDescription,
+            semesterId,
+        } = req.body;
         let images = parseImages(req.body.images);
+        const tags = parseTags(req.body.tags);
         let resolvedThumbNailImage = typeof thumbNailImage === 'string' ? thumbNailImage.trim() : '';
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -234,12 +305,27 @@ const updateNews = async (req: Request, res: Response): Promise<void> => {
             id,
             {
                 title,
+                slug,
                 description: description || '',
+                summary: summary || description || '',
                 thumbNailImage: resolvedThumbNailImage,
                 images,
                 date,
                 content: content || '',
+                body: body || content || '',
                 author,
+                coverImageId,
+                coverImageUrl: coverImageUrl || resolvedThumbNailImage,
+                status: status || 'published',
+                category,
+                tags,
+                isPinned: readBoolean(req.body.isPinned),
+                isFeatured: readBoolean(req.body.isFeatured),
+                seoTitle,
+                seoDescription,
+                publishedAt: readOptionalDate(req.body.publishedAt),
+                scheduledFor: readOptionalDate(req.body.scheduledFor),
+                semesterId,
             },
             { new: true, runValidators: true }
         );

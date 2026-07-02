@@ -1,11 +1,15 @@
 import { Request, Response } from 'express';
 import { defaultPageContent } from '../../data/pageContentData.js';
 import PageContent, {
+    defaultSectionStyles,
     defaultPageLayout,
     pageSectionKinds,
+    researchIconKeys,
     type IPageContent,
     type IPageLayoutSection,
+    type IPageSectionStyle,
     type PageSectionKind,
+    type ResearchIconKey,
 } from '../../model/pageConentModel.js';
 import PageContentVersion from '../../model/pageContentVersionModel.js';
 
@@ -46,7 +50,58 @@ const normalizeLayout = (value: unknown): IPageLayoutSection[] => {
     return normalized;
 };
 
-const normalizeContentPayload = (
+const normalizeSectionStyles = (value: unknown): IPageSectionStyle[] => {
+    const incoming = Array.isArray(value) ? value : [];
+
+    return defaultSectionStyles.map((defaultStyle) => {
+        const style = incoming.find((item) => {
+            if (!item || typeof item !== 'object') return false;
+            return (item as Record<string, unknown>).id === defaultStyle.id;
+        }) as Partial<IPageSectionStyle> | undefined;
+
+        return {
+            ...defaultStyle,
+            ...(style ?? {}),
+            id: defaultStyle.id,
+            backgroundColor:
+                typeof style?.backgroundColor === 'string' && style.backgroundColor.trim()
+                    ? style.backgroundColor
+                    : defaultStyle.backgroundColor,
+            textColor:
+                typeof style?.textColor === 'string' && style.textColor.trim()
+                    ? style.textColor
+                    : defaultStyle.textColor,
+            accentColor:
+                typeof style?.accentColor === 'string' && style.accentColor.trim()
+                    ? style.accentColor
+                    : defaultStyle.accentColor,
+        };
+    });
+};
+
+const normalizeImageItems = (value: unknown) => {
+    if (!Array.isArray(value)) return [];
+
+    return value
+        .filter((item) => {
+            if (!item || typeof item !== 'object') return false;
+            const record = item as Record<string, unknown>;
+            return typeof record.id === 'number' && typeof record.url === 'string';
+        })
+        .map((item) => {
+            const record = item as Record<string, unknown>;
+            return {
+                id: record.id as number,
+                url: record.url as string,
+                alt: typeof record.alt === 'string' ? record.alt : '',
+            };
+        });
+};
+
+const isResearchIconKey = (value: unknown): value is ResearchIconKey =>
+    typeof value === 'string' && researchIconKeys.includes(value as ResearchIconKey);
+
+export const normalizeContentPayload = (
     value: unknown,
     includeDefaultLayout = true
 ): Partial<IPageContent> => {
@@ -55,11 +110,61 @@ const normalizeContentPayload = (
     }
 
     const content = value as Partial<IPageContent>;
+    const defaultHero = defaultPageContent.hero;
+    const hero = content.hero
+        ? {
+            ...defaultHero,
+            ...content.hero,
+            partnerLogos: normalizeImageItems(content.hero.partnerLogos),
+        }
+        : undefined;
+    const defaultAbout = defaultPageContent.about;
+    const about = content.about
+        ? {
+            ...defaultAbout,
+            ...content.about,
+            images: normalizeImageItems(content.about.images),
+        }
+        : undefined;
+    const defaultFooter = defaultPageContent.footer;
+    const footer = content.footer
+        ? {
+            ...defaultFooter,
+            ...content.footer,
+            logos: normalizeImageItems(content.footer.logos),
+        }
+        : undefined;
+
     return {
         ...content,
         ...(content.layout !== undefined || includeDefaultLayout
             ? { layout: normalizeLayout(content.layout) }
             : {}),
+        ...(content.sectionStyles !== undefined || includeDefaultLayout
+            ? { sectionStyles: normalizeSectionStyles(content.sectionStyles) }
+            : {}),
+        ...(hero ? { hero } : {}),
+        ...(about ? { about } : {}),
+        ...(Array.isArray(content.researchFields)
+            ? {
+                researchFields: content.researchFields.map((field) => ({
+                    ...field,
+                    icon: isResearchIconKey(field.icon) ? field.icon : 'code',
+                })),
+            }
+            : {}),
+        ...(Array.isArray(content.workshops)
+            ? {
+                workshops: content.workshops.map((workshop) => ({
+                    ...workshop,
+                    backgroundImageUrl:
+                        typeof workshop.backgroundImageUrl === 'string'
+                            ? workshop.backgroundImageUrl
+                            : '',
+                })),
+            }
+            : {}),
+        ...(footer ? { footer } : {}),
     };
 };
 
@@ -144,6 +249,100 @@ export const getPageContentVersions = async (
     } catch (error) {
         console.error('Error retrieving page content versions:', error);
         res.status(500).json({ message: 'Failed to retrieve page content versions' });
+    }
+};
+
+export const getPageContentVersion = async (
+    req: Request,
+    res: Response
+): Promise<void> => {
+    try {
+        const version = await PageContentVersion.findById(req.params.id).lean();
+
+        if (!version) {
+            res.status(404).json({ message: 'Page content version not found' });
+            return;
+        }
+
+        res.status(200).json({
+            message: 'Page content version fetched successfully',
+            data: {
+                ...version,
+                content: normalizeContentPayload(version.content),
+            },
+        });
+    } catch (error) {
+        console.error('Error retrieving page content version:', error);
+        res.status(500).json({ message: 'Failed to retrieve page content version' });
+    }
+};
+
+export const getPageContentVersionDiff = async (
+    req: Request,
+    res: Response
+): Promise<void> => {
+    try {
+        const version = await PageContentVersion.findById(req.params.id).lean();
+        const current = await PageContent.findOne({}).lean();
+
+        if (!version) {
+            res.status(404).json({ message: 'Page content version not found' });
+            return;
+        }
+
+        const snapshot = normalizeContentPayload(version.content);
+        const currentContent = normalizeContentPayload(current);
+        const changedFields = new Set([
+            ...Object.keys(snapshot),
+            ...Object.keys(currentContent),
+        ]);
+
+        const diff = [...changedFields]
+            .filter((field) =>
+                JSON.stringify(snapshot[field as keyof typeof snapshot]) !==
+                JSON.stringify(currentContent[field as keyof typeof currentContent])
+            )
+            .map((field) => ({
+                field,
+                before: snapshot[field as keyof typeof snapshot],
+                after: currentContent[field as keyof typeof currentContent],
+            }));
+
+        res.status(200).json({
+            message: 'Page content version diff fetched successfully',
+            data: diff,
+        });
+    } catch (error) {
+        console.error('Error retrieving page content version diff:', error);
+        res.status(500).json({ message: 'Failed to retrieve page content version diff' });
+    }
+};
+
+export const restorePageContentVersionAsDraft = async (
+    req: Request,
+    res: Response
+): Promise<void> => {
+    try {
+        const version = await PageContentVersion.findById(req.params.id).lean();
+
+        if (!version) {
+            res.status(404).json({ message: 'Page content version not found' });
+            return;
+        }
+
+        const restoredVersion = await PageContentVersion.create({
+            label: `Draft restored from ${version.label}`,
+            content: normalizeContentPayload(version.content),
+            createdBy: 'restore',
+        });
+
+        res.status(201).json({
+            message: 'Page content version restored as draft successfully',
+            data: restoredVersion.toObject(),
+        });
+    } catch (error) {
+        console.error('Error restoring page content version:', error);
+        res.status(500).json({ message: 'Failed to restore page content version' });
     }
 };
 
