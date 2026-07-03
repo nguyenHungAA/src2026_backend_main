@@ -6,8 +6,13 @@ import uploadMentorAvatar from '../controller/mentors/uploadMentorAvatar.js'
 import verifyTurnstile from '../middleware/verifyTurnstile.js'
 import {
     approvePendingMentor,
+    createAdminMentor,
+    deleteAdminMentor,
     declinePendingMentor,
+    getAdminMentorById,
+    getAdminMentors,
     getPendingMentors,
+    updateAdminMentor,
 } from '../controller/mentors/adminMentors.js'
 import { adminMiddleware, authMiddleware } from '../middleware/authMiddleware.js'
 
@@ -26,6 +31,11 @@ const upload = multer({
 });
 
 router.get('/', getMentors);
+router.get('/admin', authMiddleware, adminMiddleware, getAdminMentors);
+router.post('/admin', authMiddleware, adminMiddleware, createAdminMentor);
+router.get('/admin/:id', authMiddleware, adminMiddleware, getAdminMentorById);
+router.put('/admin/:id', authMiddleware, adminMiddleware, updateAdminMentor);
+router.delete('/admin/:id', authMiddleware, adminMiddleware, deleteAdminMentor);
 router.get('/pending', authMiddleware, adminMiddleware, getPendingMentors);
 router.post('/pending/:id/approve', authMiddleware, adminMiddleware, approvePendingMentor);
 router.delete('/pending/:id', authMiddleware, adminMiddleware, declinePendingMentor);

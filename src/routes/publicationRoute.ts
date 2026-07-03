@@ -8,8 +8,13 @@ import deleteImage from '../controller/deleteImage.js'
 import verifyTurnstile from '../middleware/verifyTurnstile.js'
 import {
     approvePendingPublication,
+    createAdminPublication,
+    deleteAdminPublication,
     declinePendingPublication,
+    getAdminPublicationById,
+    getAdminPublications,
     getPendingPublications,
+    updateAdminPublication,
 } from '../controller/publication/adminPublications.js'
 import { adminMiddleware, authMiddleware } from '../middleware/authMiddleware.js'
 
@@ -29,6 +34,11 @@ const upload = multer({
 });
 
 router.get('/', getPublications);
+router.get('/admin', authMiddleware, adminMiddleware, getAdminPublications);
+router.post('/admin', authMiddleware, adminMiddleware, createAdminPublication);
+router.get('/admin/:id', authMiddleware, adminMiddleware, getAdminPublicationById);
+router.put('/admin/:id', authMiddleware, adminMiddleware, updateAdminPublication);
+router.delete('/admin/:id', authMiddleware, adminMiddleware, deleteAdminPublication);
 router.get('/pending', authMiddleware, adminMiddleware, getPendingPublications);
 router.post('/pending/:id/approve', authMiddleware, adminMiddleware, approvePendingPublication);
 router.delete('/pending/:id', authMiddleware, adminMiddleware, declinePendingPublication);
