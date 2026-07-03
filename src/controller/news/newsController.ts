@@ -256,4 +256,32 @@ const updateNews = async (req: Request, res: Response): Promise<void> => {
     }
 };
 
-export { getNews, getNewsById, postNews, postNewsImages, postNewsThumbNailImage, updateNews };
+const deleteNews = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = String(req.params.id ?? '');
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            res.status(400).json({ message: 'Invalid news ID' });
+            return;
+        }
+
+        if (!(await ensureMongoConnected())) {
+            sendDatabaseUnavailable(res);
+            return;
+        }
+
+        const deletedNews = await News.findByIdAndDelete(id);
+
+        if (!deletedNews) {
+            res.status(404).json({ message: 'News not found' });
+            return;
+        }
+
+        res.status(200).json({ message: 'News deleted successfully', data: deletedNews });
+    } catch (error) {
+        console.error('Error deleting news:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+export { getNews, getNewsById, postNews, postNewsImages, postNewsThumbNailImage, updateNews, deleteNews };

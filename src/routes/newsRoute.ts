@@ -1,6 +1,6 @@
 import express, { Router } from 'express'
 import multer from 'multer'
-import { getNews, getNewsById, postNews, postNewsImages, postNewsThumbNailImage, updateNews } from '../controller/news/newsController.js'
+import { deleteNews, getNews, getNewsById, postNews, postNewsImages, postNewsThumbNailImage, updateNews } from '../controller/news/newsController.js'
 import { adminMiddleware, authMiddleware } from '../middleware/authMiddleware.js';
 
 const router: Router = express.Router();
@@ -41,5 +41,7 @@ router.put(
     ]),
     updateNews
 );
+
+router.delete('/:id', authMiddleware, adminMiddleware, deleteNews);
 
 export default router;
