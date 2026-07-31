@@ -9,6 +9,7 @@ import pageRouter from "./cms/pageRoute.js";
 import publicPageRouter from "./cms/publicPageRoute.js";
 import mediaRouter from "./cms/mediaRoute.js";
 import auditLogRouter from "./cms/auditLogRoute.js";
+import registrationRouter from "./registrationRoute.js";
 
 const router: Router = Router();
 
@@ -22,5 +23,6 @@ router.use('/admin/pages', pageRouter);
 router.use('/admin/media', mediaRouter);
 router.use('/admin/audit-logs', auditLogRouter);
 router.use('/pages', publicPageRouter);
+router.use('/registration', registrationRouter);
 
 export default router;

@@ -22,6 +22,7 @@ const swaggerDocument = {
         { name: 'System', description: 'Backend landing and documentation endpoints' },
         { name: 'Publications', description: 'Publication listing, detail, submission, and media endpoints' },
         { name: 'Mentors', description: 'Mentor directory endpoints' },
+        { name: 'Registrations', description: 'Public competition registration endpoints' },
         { name: 'News', description: 'News article endpoints' },
         { name: 'Page Content', description: 'Competition page content, layout, and version history endpoints' },
     ],
@@ -491,6 +492,48 @@ const swaggerDocument = {
                 },
             },
         },
+        '/api/v1/registration': {
+            post: {
+                tags: ['Registrations'],
+                summary: 'Submit a competition registration',
+                description: 'Validate and store a public registration in registrationDb.registrationCollection.',
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: { $ref: '#/components/schemas/RegistrationSubmitRequest' },
+                        },
+                    },
+                },
+                responses: {
+                    '201': {
+                        description: 'Registration submitted successfully',
+                        content: {
+                            'application/json': {
+                                schema: { $ref: '#/components/schemas/RegistrationSubmitResponse' },
+                            },
+                        },
+                    },
+                    '400': {
+                        description: 'Invalid registration or missing Turnstile token',
+                        content: {
+                            'application/json': {
+                                schema: { $ref: '#/components/schemas/MessageResponse' },
+                            },
+                        },
+                    },
+                    '403': {
+                        description: 'Bot verification failed',
+                        content: {
+                            'application/json': {
+                                schema: { $ref: '#/components/schemas/MessageResponse' },
+                            },
+                        },
+                    },
+                    '500': { $ref: '#/components/responses/InternalServerError' },
+                },
+            },
+        },
         '/news': {
             get: {
                 tags: ['News'],
@@ -524,6 +567,26 @@ const swaggerDocument = {
         },
         schemas: {
             MessageResponse: messageResponse,
+            RegistrationSubmitRequest: {
+                type: 'object',
+                required: ['name', 'email', 'topic', 'field', 'mentor', 'turnstileToken'],
+                additionalProperties: false,
+                properties: {
+                    name: { type: 'string', maxLength: 120, example: 'Student Name' },
+                    email: { type: 'string', format: 'email', maxLength: 254, example: 'student@example.com' },
+                    topic: { type: 'string', maxLength: 500, example: 'Applied AI for education' },
+                    field: { type: 'string', maxLength: 160, example: 'Information Technology' },
+                    mentor: { type: 'string', maxLength: 160, example: 'Mentor Name' },
+                    turnstileToken: { type: 'string', description: 'Cloudflare Turnstile response token' },
+                },
+            },
+            RegistrationSubmitResponse: {
+                type: 'object',
+                properties: {
+                    message: { type: 'string', example: 'Registration submitted successfully' },
+                    registrationId: { type: 'string', example: '66507a6e8f8b2a0012d8b999' },
+                },
+            },
             PublicationImage: {
                 type: 'object',
                 required: ['url', 'publicId'],
