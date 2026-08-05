@@ -78,6 +78,27 @@ const sendDatabaseUnavailable = (res: Response) => {
     res.status(503).json({ message: 'Database is not connected. Check MONGO_URI and MongoDB network access.' });
 };
 
+const relatedNewsFields = [
+    'title',
+    'slug',
+    'description',
+    'summary',
+    'thumbNailImage',
+    'images',
+    'date',
+    'author',
+    'coverImageUrl',
+    'category',
+    'tags',
+    'isPinned',
+    'isFeatured',
+    'publishedAt',
+    'createdAt',
+    'updatedAt',
+].join(' ');
+
+const publicNewsFilter = { status: 'published' as const };
+
 const getNews = async (_req: Request, res: Response): Promise<void> => {
     try {
         if (!(await ensureMongoConnected())) {
@@ -85,7 +106,7 @@ const getNews = async (_req: Request, res: Response): Promise<void> => {
             return;
         }
 
-        const news = await News.find({}).sort({ createdAt: -1 }).lean();
+        const news = await News.find(publicNewsFilter).sort({ createdAt: -1 }).lean();
 
         res.status(200).json({ message: 'News fetched successfully', data: news });
     } catch (error) {
@@ -108,7 +129,7 @@ const getNewsById = async (req: Request, res: Response): Promise<void> => {
             return;
         }
 
-        const news = await News.findById(id).lean();
+        const news = await News.findOne({ _id: id, ...publicNewsFilter }).lean();
 
         if (!news) {
             res.status(404).json({ message: 'News not found' });
@@ -118,6 +139,126 @@ const getNewsById = async (req: Request, res: Response): Promise<void> => {
         res.status(200).json({ message: 'News fetched successfully', data: news });
     } catch (error) {
         console.error('Error fetching news by ID:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+const getRelatedNews = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = String(req.params.id ?? '');
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            res.status(400).json({ message: 'Invalid news ID' });
+            return;
+        }
+
+        if (!(await ensureMongoConnected())) {
+            sendDatabaseUnavailable(res);
+            return;
+        }
+
+        const limit = Math.min(Math.max(Number(req.query.limit) || 3, 1), 12);
+        const currentNews = await News.findOne({ _id: id, ...publicNewsFilter })
+            .select('category tags semesterId')
+            .lean();
+
+        if (!currentNews) {
+            res.status(404).json({ message: 'News not found' });
+            return;
+        }
+
+        const relatedConditions: Record<string, unknown>[] = [];
+        if (currentNews.category) {
+            relatedConditions.push({ category: currentNews.category });
+        }
+        if (Array.isArray(currentNews.tags) && currentNews.tags.length > 0) {
+            relatedConditions.push({ tags: { $in: currentNews.tags } });
+        }
+        if (currentNews.semesterId) {
+            relatedConditions.push({ semesterId: currentNews.semesterId });
+        }
+
+        const baseFilter: Record<string, unknown> = {
+            _id: { $ne: id },
+            ...publicNewsFilter,
+        };
+        const relatedFilter =
+            relatedConditions.length > 0
+                ? { ...baseFilter, $or: relatedConditions }
+                : baseFilter;
+
+        const relatedNews = await News.find(relatedFilter)
+            .select(relatedNewsFields)
+            .sort({ isPinned: -1, createdAt: -1 })
+            .limit(limit)
+            .lean();
+
+        if (relatedNews.length >= limit) {
+            res.status(200).json({ message: 'Related news fetched successfully', data: relatedNews });
+            return;
+        }
+
+        const fallbackNews = await News.find({
+            ...publicNewsFilter,
+            _id: {
+                $nin: [id, ...relatedNews.map((item) => item._id)],
+            },
+        })
+            .select(relatedNewsFields)
+            .sort({ createdAt: -1 })
+            .limit(limit - relatedNews.length)
+            .lean();
+
+        res.status(200).json({
+            message: 'Related news fetched successfully',
+            data: [...relatedNews, ...fallbackNews],
+        });
+    } catch (error) {
+        console.error('Error fetching related news:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+const getAdminNews = async (_req: Request, res: Response): Promise<void> => {
+    try {
+        if (!(await ensureMongoConnected())) {
+            sendDatabaseUnavailable(res);
+            return;
+        }
+
+        const news = await News.find({}).sort({ createdAt: -1 }).lean();
+
+        res.status(200).json({ message: 'Admin news fetched successfully', data: news });
+    } catch (error) {
+        console.error('Error fetching admin news:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+const getAdminNewsById = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = String(req.params.id ?? '');
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            res.status(400).json({ message: 'Invalid news ID' });
+            return;
+        }
+
+        if (!(await ensureMongoConnected())) {
+            sendDatabaseUnavailable(res);
+            return;
+        }
+
+        const news = await News.findById(id).lean();
+
+        if (!news) {
+            res.status(404).json({ message: 'News not found' });
+            return;
+        }
+
+        res.status(200).json({ message: 'Admin news fetched successfully', data: news });
+    } catch (error) {
+        console.error('Error fetching admin news by ID:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -370,4 +511,15 @@ const deleteNews = async (req: Request, res: Response): Promise<void> => {
     }
 };
 
-export { getNews, getNewsById, postNews, postNewsImages, postNewsThumbNailImage, updateNews, deleteNews };
+export {
+    getNews,
+    getNewsById,
+    getRelatedNews,
+    getAdminNews,
+    getAdminNewsById,
+    postNews,
+    postNewsImages,
+    postNewsThumbNailImage,
+    updateNews,
+    deleteNews,
+};

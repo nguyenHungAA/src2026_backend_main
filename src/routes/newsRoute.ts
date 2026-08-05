@@ -1,6 +1,6 @@
 import express, { Router } from 'express'
 import multer from 'multer'
-import { deleteNews, getNews, getNewsById, postNews, postNewsImages, postNewsThumbNailImage, updateNews } from '../controller/news/newsController.js'
+import { deleteNews, getAdminNews, getAdminNewsById, getNews, getNewsById, getRelatedNews, postNews, postNewsImages, postNewsThumbNailImage, updateNews } from '../controller/news/newsController.js'
 import { adminMiddleware, authMiddleware } from '../middleware/authMiddleware.js';
 
 const router: Router = express.Router();
@@ -19,6 +19,9 @@ const upload = multer({
 });
 
 router.get('/', getNews);
+router.get('/admin', authMiddleware, adminMiddleware, getAdminNews);
+router.get('/admin/:id', authMiddleware, adminMiddleware, getAdminNewsById);
+router.get('/:id/related', getRelatedNews);
 router.get('/:id', getNewsById);
 router.post('/images', authMiddleware, upload.array('images', 10), postNewsImages);
 router.post('/thumbnail-image', authMiddleware, upload.single('thumbNailImage'), postNewsThumbNailImage);
