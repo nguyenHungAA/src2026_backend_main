@@ -10,6 +10,9 @@ import publicPageRouter from "./cms/publicPageRoute.js";
 import mediaRouter from "./cms/mediaRoute.js";
 import auditLogRouter from "./cms/auditLogRoute.js";
 import registrationRouter from "./registrationRoute.js";
+import analyticsRouter from "./analyticsRoute.js";
+import emailOutboxRouter from "./emailOutboxRoute.js";
+import maintenanceRouter from "./maintenanceRoute.js";
 
 const router: Router = Router();
 
@@ -24,5 +27,8 @@ router.use('/admin/media', mediaRouter);
 router.use('/admin/audit-logs', auditLogRouter);
 router.use('/pages', publicPageRouter);
 router.use('/registration', registrationRouter);
+router.use('/admin/analytics', analyticsRouter);
+router.use('/email-notifications', emailOutboxRouter);
+router.use('/maintenance', maintenanceRouter);
 
 export default router;

@@ -3,8 +3,15 @@ import cors from 'cors'
 import connectDB from './config/db.js'
 import swaggerDocument from './swagger.js'
 import appRouter from './routes/index.js'
+import compression from 'compression'
+import { errorHandler, notFoundHandler, requestContext } from './middleware/httpPolicy.js'
+import { validateEnvironment } from './config/environment.js'
+import { logger } from './utils/logger.js'
+import mongoose from 'mongoose'
 
-const app = express();
+validateEnvironment();
+
+const app: express.Express = express();
 const PORT = Number(process.env.PORT) || 3000;
 
 const allowedOrigins = (process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173')
@@ -12,7 +19,13 @@ const allowedOrigins = (process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173')
     .map((origin) => origin.trim())
     .filter(Boolean);
 
-// app.set('trust proxy', 1);
+app.disable('x-powered-by');
+app.set('etag', 'strong');
+if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS ?? 1));
+}
+app.use(requestContext);
+app.use(compression({ threshold: 1024 }));
 app.use(cors({
     credentials: true,
     origin: (origin, callback) => {
@@ -24,7 +37,30 @@ app.use(cors({
         callback(new Error('Not allowed by CORS'));
     },
 }));
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
+
+app.use((req: Request, res: Response, next) => {
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+        next();
+        return;
+    }
+    const origin = req.header('origin');
+    if (!origin || allowedOrigins.includes(origin)) {
+        next();
+        return;
+    }
+    res.status(403).json({ code: 'ORIGIN_FORBIDDEN', message: 'Request origin is not allowed', requestId: res.locals.requestId });
+});
+
+app.get('/health', (_req: Request, res: Response) => {
+    res.status(200).json({ status: 'ok', releaseSha: process.env.RELEASE_SHA ?? 'unknown' });
+});
+
+app.get('/ready', async (_req: Request, res: Response) => {
+    await connectDB();
+    const ready = mongoose.connection.readyState === 1;
+    res.status(ready ? 200 : 503).json({ status: ready ? 'ready' : 'not_ready' });
+});
 
 app.get('/openapi.json', (_req: Request, res: Response) => {
     res.json(swaggerDocument);
@@ -133,17 +169,27 @@ app.get('/', (req: Request, res: Response) => {
     `);
 });
 
-app.use('/api/v1/', appRouter);
+app.use('/api/v1/', async (_req: Request, res: Response, next) => {
+    await connectDB();
+    if (mongoose.connection.readyState !== 1) {
+        res.status(503).json({ code: 'DATABASE_UNAVAILABLE', message: 'Database is temporarily unavailable', requestId: res.locals.requestId });
+        return;
+    }
+    next();
+}, appRouter);
+app.use('/api/v1', notFoundHandler);
+app.use(errorHandler);
 
 const startServer = async () => {
     await connectDB();
 
     app.listen(PORT, () => {
-        console.log('\n');
-        console.log('Welcome to SRC2026 backend!');
-        console.log(`Server is running at http://localhost:${PORT}`);
-        console.log('\n');
+        logger.info('server.started', { port: PORT });
     });
 };
 
-startServer();
+if (!process.env.VERCEL) {
+    void startServer();
+}
+
+export default app;

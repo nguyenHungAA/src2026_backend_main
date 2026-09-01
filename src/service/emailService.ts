@@ -1,7 +1,4 @@
 import nodemailer from 'nodemailer';
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -9,162 +6,147 @@ const transporter = nodemailer.createTransport({
         user: process.env.GMAIL_USER,
         pass: process.env.GMAIL_APP_PASSWORD,
     },
+    connectionTimeout: Number(process.env.SMTP_CONNECTION_TIMEOUT_MS ?? 10000),
+    greetingTimeout: Number(process.env.SMTP_GREETING_TIMEOUT_MS ?? 10000),
+    socketTimeout: Number(process.env.SMTP_SOCKET_TIMEOUT_MS ?? 15000),
 });
 
-interface PublicationEmailData {
+export type SignupEmailData = {
+    email: string;
+    token: string;
+};
+
+export type PublicationEmailData = {
+    referenceId: string;
+    submittedAt: string;
     title: string;
     author: string;
     year: string;
     journal: string;
     doi: string;
     authorGmail: string;
-}
+};
 
-interface MentorProfileEmailData {
+export type MentorProfileEmailData = {
+    referenceId: string;
+    submittedAt: string;
     title: string;
     fullName: string;
     department: string;
     email: string;
-    personalWebsite: string;
-    orcid: string;
-    researchGate: string;
-    googleScholar: string;
     researchAreas: string;
     researchTopics: string;
-    note: string;
-    avatar: { url: string; publicId: string } | null;
-}
+};
 
-const sendSignupConfirmationEmail = async (email: string, token: string): Promise<void> => {
+export type RegistrationEmailData = {
+    referenceId: string;
+    submittedAt: string;
+    name: string;
+    email: string;
+    topic: string;
+    field: string;
+    mentor: string;
+};
+
+const escapeHtml = (value: unknown): string => String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+
+const formatTime = (value: string): string => {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+        ? String(value)
+        : `${date.toISOString()} (${date.toLocaleString('en-GB', { timeZone: 'Asia/Ho_Chi_Minh' })} Asia/Ho_Chi_Minh)`;
+};
+
+const table = (rows: Array<[string, unknown]>): string => `
+    <table style="border-collapse:collapse;width:100%;max-width:680px">
+        ${rows.map(([label, value]) => `
+            <tr>
+                <th scope="row" style="padding:8px;border:1px solid #ddd;text-align:left">${escapeHtml(label)}</th>
+                <td style="padding:8px;border:1px solid #ddd">${escapeHtml(value) || 'Not provided'}</td>
+            </tr>`).join('')}
+    </table>`;
+
+const send = async (to: string, subject: string, html: string, text: string): Promise<void> => {
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+        throw new Error('SMTP is not configured');
+    }
+    await transporter.sendMail({
+        from: process.env.GMAIL_USER,
+        to,
+        subject,
+        html,
+        text,
+    });
+};
+
+export const sendSignupConfirmationEmail = async ({ email, token }: SignupEmailData): Promise<void> => {
     const backendUrl = (process.env.BACKEND_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
-    const mailOptions = {
-        from: process.env.GMAIL_USER,
-        to: email,
-        subject: 'Confirm Your Email Address',
-        html: `
-            <h2>Welcome to ResFes 2026!</h2>
-            <p>Thank you for signing up. Please confirm your email address by clicking the link below:</p>
-            <a href="${backendUrl}/api/v1/auth/confirm-email?token=${encodeURIComponent(token)}" style="display: inline-block; padding: 10px 20px; background-color: #2563eb; color: #fff; text-decoration: none; border-radius: 4px;">Confirm Email</a>
-            <p>If you did not sign up for this account, please ignore this email.</p>
-        `,
-    };
-    await transporter.sendMail(mailOptions);
-}
-
-const sendPublicationEmail = async (data: PublicationEmailData): Promise<void> => {
-    const { title, author, year, journal, doi, authorGmail } = data;
-
-    const mailOptions = {
-        from: process.env.GMAIL_USER,
-        to: process.env.NOTIFY_EMAIL,
-        subject: `New Publication Submitted: ${title}`,
-        html: `
-            <h2>📄 New Publication Submitted</h2>
-            <table style="border-collapse: collapse; width: 100%; max-width: 600px;">
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Title</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${title}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Author</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${author}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Year</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${year || 'N/A'}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Journal / Conference</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${journal || 'N/A'}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">DOI</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${doi ? `<a href="https://doi.org/${doi}">${doi}</a>` : 'N/A'}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Submitted by</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${authorGmail}</td>
-                </tr>
-            </table>
-        `,
-    };
-
-    await transporter.sendMail(mailOptions);
-    console.log(`Notification email sent to ${process.env.NOTIFY_EMAIL}`);
+    const confirmationUrl = `${backendUrl}/api/v1/auth/confirm-email?token=${encodeURIComponent(token)}`;
+    await send(
+        email,
+        '[SRC2026][ACCOUNT] Confirm your email address',
+        `<h2>Confirm your SRC2026 account</h2><p><a href="${escapeHtml(confirmationUrl)}">Confirm email</a></p><p>This link expires in 24 hours.</p>`,
+        `Confirm your SRC2026 account within 24 hours: ${confirmationUrl}`,
+    );
 };
 
-const sendMentorProfileEmail = async (data: MentorProfileEmailData): Promise<void> => {
-    const {
-        title, fullName, department, email,
-        personalWebsite, orcid, researchGate, googleScholar,
-        researchAreas, researchTopics, note, avatar,
-    } = data;
-
-    const avatarHtml = avatar
-        ? `<img src="${avatar.url}" alt="Avatar" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover;" />`
-        : '<em>No avatar uploaded</em>';
-
-    const linkOrEmpty = (url: string, label: string) =>
-        url ? `<a href="${url}" style="color: #2563eb;">${label}</a>` : '<em>Not provided</em>';
-
-    const mailOptions = {
-        from: process.env.GMAIL_USER,
-        to: process.env.NOTIFY_EMAIL,
-        subject: `Mentor Profile Submission: ${fullName}`,
-        html: `
-            <h2>👤 Mentor Profile Submitted for Approval</h2>
-            <div style="margin-bottom: 16px;">${avatarHtml}</div>
-            <table style="border-collapse: collapse; width: 100%; max-width: 600px;">
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Title</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${title}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Full Name</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${fullName}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Department</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${department || '<em>Not provided</em>'}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Email</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${email}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Personal Website</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${linkOrEmpty(personalWebsite, personalWebsite)}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">OrCID</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${linkOrEmpty(orcid, orcid)}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">ResearchGate</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${linkOrEmpty(researchGate, 'View Profile')}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Google Scholar</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${linkOrEmpty(googleScholar, 'View Profile')}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Research Areas</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${researchAreas || '<em>Not provided</em>'}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Research Topics</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${researchTopics || '<em>Not provided</em>'}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Note</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${note || '<em>Not provided</em>'}</td>
-                </tr>
-            </table>
-        `,
-    };
-
-    await transporter.sendMail(mailOptions);
-    console.log(`Mentor profile notification email sent to ${process.env.NOTIFY_EMAIL}`);
+export const sendPublicationEmail = async (data: PublicationEmailData): Promise<void> => {
+    const subject = `[SRC2026][PUBLICATION][${data.referenceId}] New submission`;
+    await send(
+        String(process.env.NOTIFY_EMAIL ?? ''),
+        subject,
+        `<h2>Publication submission</h2>${table([
+            ['Reference', data.referenceId],
+            ['Submitted at', formatTime(data.submittedAt)],
+            ['Title', data.title],
+            ['Author', data.author],
+            ['Year', data.year],
+            ['Journal / conference', data.journal],
+            ['DOI', data.doi],
+            ['Submitted by', data.authorGmail],
+        ])}`,
+        `${subject}\nSubmitted at: ${data.submittedAt}\nTitle: ${data.title}\nAuthor: ${data.author}\nSubmitted by: ${data.authorGmail}`,
+    );
 };
 
-export { sendSignupConfirmationEmail, sendPublicationEmail, sendMentorProfileEmail };
+export const sendMentorProfileEmail = async (data: MentorProfileEmailData): Promise<void> => {
+    const subject = `[SRC2026][MENTOR][${data.referenceId}] New submission`;
+    await send(
+        String(process.env.NOTIFY_EMAIL ?? ''),
+        subject,
+        `<h2>Mentor profile submission</h2>${table([
+            ['Reference', data.referenceId],
+            ['Submitted at', formatTime(data.submittedAt)],
+            ['Title', data.title],
+            ['Full name', data.fullName],
+            ['Department', data.department],
+            ['Email', data.email],
+            ['Research areas', data.researchAreas],
+            ['Research topics', data.researchTopics],
+        ])}`,
+        `${subject}\nSubmitted at: ${data.submittedAt}\nName: ${data.fullName}\nEmail: ${data.email}`,
+    );
+};
+
+export const sendRegistrationEmail = async (data: RegistrationEmailData): Promise<void> => {
+    const subject = `[SRC2026][REGISTRATION][${data.referenceId}] New registration`;
+    await send(
+        String(process.env.NOTIFY_EMAIL ?? ''),
+        subject,
+        `<h2>Research registration</h2>${table([
+            ['Reference', data.referenceId],
+            ['Submitted at', formatTime(data.submittedAt)],
+            ['Name', data.name],
+            ['Email', data.email],
+            ['Topic', data.topic],
+            ['Field', data.field],
+            ['Mentor', data.mentor],
+        ])}`,
+        `${subject}\nSubmitted at: ${data.submittedAt}\nName: ${data.name}\nTopic: ${data.topic}\nMentor: ${data.mentor}`,
+    );
+};
