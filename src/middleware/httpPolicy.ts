@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import type { ErrorRequestHandler, NextFunction, Request, Response } from 'express';
 import { logger } from '../utils/logger.js';
 
+export const CORS_ORIGIN_FORBIDDEN = 'CORS_ORIGIN_FORBIDDEN';
+
 const requestIdPattern = /^[A-Za-z0-9._-]{1,128}$/;
 
 export const requestContext = (req: Request, res: Response, next: NextFunction): void => {
@@ -49,6 +51,29 @@ export const privateNoStore = (_req: Request, res: Response, next: NextFunction)
     next();
 };
 
+export const requireAllowedOrigin = (allowedOrigins: readonly string[]) => (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+): void => {
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+        next();
+        return;
+    }
+
+    const origin = req.header('origin');
+    if (!origin || allowedOrigins.includes(origin)) {
+        next();
+        return;
+    }
+
+    res.status(403).json({
+        code: 'ORIGIN_FORBIDDEN',
+        message: 'Request origin is not allowed',
+        requestId: res.locals.requestId,
+    });
+};
+
 export const notFoundHandler = (req: Request, res: Response): void => {
     res.status(404).json({
         code: 'NOT_FOUND',
@@ -67,14 +92,20 @@ export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
     const isFileTooLarge = typeof error === 'object' && error !== null &&
         'code' in error && error.code === 'LIMIT_FILE_SIZE';
     const isUnsupportedFile = error instanceof Error && error.message === 'UNSUPPORTED_IMAGE_TYPE';
-    const status = isPayloadTooLarge || isFileTooLarge ? 413 : isUnsupportedFile ? 415 : 500;
+    const isCorsOriginForbidden = typeof error === 'object' && error !== null &&
+        'code' in error && error.code === CORS_ORIGIN_FORBIDDEN;
+    const status = isCorsOriginForbidden ? 403
+        : isPayloadTooLarge || isFileTooLarge ? 413
+            : isUnsupportedFile ? 415 : 500;
 
     res.status(status).json({
-        code: isPayloadTooLarge ? 'PAYLOAD_TOO_LARGE'
+        code: isCorsOriginForbidden ? 'CORS_ORIGIN_FORBIDDEN'
+            : isPayloadTooLarge ? 'PAYLOAD_TOO_LARGE'
             : isFileTooLarge ? 'FILE_TOO_LARGE'
                 : isUnsupportedFile ? 'UNSUPPORTED_IMAGE_TYPE'
                     : 'INTERNAL_ERROR',
-        message: isPayloadTooLarge ? 'Request payload is too large'
+        message: isCorsOriginForbidden ? 'Request origin is not allowed'
+            : isPayloadTooLarge ? 'Request payload is too large'
             : isFileTooLarge ? 'Image file is too large'
                 : isUnsupportedFile ? 'Only JPEG, PNG, and WebP images are allowed'
                     : 'Request could not be processed',

@@ -4,7 +4,13 @@ import connectDB from './config/db.js'
 import swaggerDocument from './swagger.js'
 import appRouter from './routes/index.js'
 import compression from 'compression'
-import { errorHandler, notFoundHandler, requestContext } from './middleware/httpPolicy.js'
+import {
+    CORS_ORIGIN_FORBIDDEN,
+    errorHandler,
+    notFoundHandler,
+    requestContext,
+    requireAllowedOrigin,
+} from './middleware/httpPolicy.js'
 import { validateEnvironment } from './config/environment.js'
 import { logger } from './utils/logger.js'
 import mongoose from 'mongoose'
@@ -34,23 +40,12 @@ app.use(cors({
             return;
         }
 
-        callback(new Error('Not allowed by CORS'));
+        callback(Object.assign(new Error('Not allowed by CORS'), { code: CORS_ORIGIN_FORBIDDEN }));
     },
 }));
 app.use(express.json({ limit: '1mb' }));
 
-app.use((req: Request, res: Response, next) => {
-    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
-        next();
-        return;
-    }
-    const origin = req.header('origin');
-    if (!origin || allowedOrigins.includes(origin)) {
-        next();
-        return;
-    }
-    res.status(403).json({ code: 'ORIGIN_FORBIDDEN', message: 'Request origin is not allowed', requestId: res.locals.requestId });
-});
+app.use(requireAllowedOrigin(allowedOrigins));
 
 app.get('/health', (_req: Request, res: Response) => {
     res.status(200).json({ status: 'ok', releaseSha: process.env.RELEASE_SHA ?? 'unknown' });

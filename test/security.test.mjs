@@ -54,6 +54,20 @@ test('image validation rejects spoofed image MIME', () => {
     assert.equal(result.nextCalled, false);
 });
 
+test('image validation rejects valid signatures with unsafe dimensions', () => {
+    const png = Buffer.alloc(24);
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(png);
+    png.writeUInt32BE(9000, 16);
+    png.writeUInt32BE(100, 20);
+    const result = runImageValidation({
+        mimetype: 'image/png',
+        buffer: png,
+    });
+    assert.equal(result.statusCode, 415);
+    assert.equal(result.body.code, 'INVALID_IMAGE_CONTENT');
+    assert.equal(result.nextCalled, false);
+});
+
 test('production environment validation rejects incomplete configuration', () => {
     const previousNodeEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = 'production';
