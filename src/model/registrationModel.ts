@@ -6,6 +6,7 @@ export interface IRegistration extends Document {
     topic: string;
     field: string;
     mentor: string;
+    submissionFingerprint?: string;
 }
 
 const registrationSchema = new Schema<IRegistration>(
@@ -21,9 +22,15 @@ const registrationSchema = new Schema<IRegistration>(
         topic: { type: String, required: true, trim: true, maxlength: 500 },
         field: { type: String, required: true, trim: true, maxlength: 160 },
         mentor: { type: String, required: true, trim: true, maxlength: 160 },
+        submissionFingerprint: { type: String, select: false },
     },
     { timestamps: true },
 );
+
+registrationSchema.index({ createdAt: -1 });
+registrationSchema.index({ field: 1, createdAt: -1 });
+registrationSchema.index({ mentor: 1, createdAt: -1 });
+registrationSchema.index({ submissionFingerprint: 1 }, { unique: true, sparse: true });
 
 const registrationDb = mongoose.connection.useDb('registrationDb');
 const Registration = registrationDb.model<IRegistration>(

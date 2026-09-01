@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
+import { createHash } from 'node:crypto';
 import mongoose from 'mongoose';
 import Registration from '../../model/registrationModel.js';
+import { enqueueEmail } from '../../service/emailOutboxService.js';
+import { logger } from '../../utils/logger.js';
 
 const allowedFields = new Set(['name', 'email', 'topic', 'field', 'mentor']);
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -67,19 +70,38 @@ const submitRegistration = async (req: Request, res: Response): Promise<void> =>
             return;
         }
 
-        const saved = await Registration.create(registration);
+        const submissionFingerprint = createHash('sha256').update([
+            registration.email,
+            registration.topic.toLowerCase(),
+            registration.field.toLowerCase(),
+            registration.mentor.toLowerCase(),
+        ].join('|')).digest('hex');
+        const saved = await Registration.create({ ...registration, submissionFingerprint });
+
+        await enqueueEmail('registration.submitted', String(saved._id), {
+            referenceId: String(saved._id),
+            submittedAt: new Date().toISOString(),
+            ...registration,
+        }).catch((error) => logger.error('registration.notification_enqueue_failed', error, {
+            requestId: res.locals.requestId,
+            aggregateId: String(saved._id),
+        }));
 
         res.status(201).json({
             message: 'Registration submitted successfully',
             registrationId: saved._id,
         });
     } catch (error) {
+        if ((error as { code?: number }).code === 11000) {
+            res.status(409).json({ code: 'DUPLICATE_SUBMISSION', message: 'This registration has already been submitted.' });
+            return;
+        }
         if (error instanceof mongoose.Error.ValidationError) {
             res.status(400).json({ message: error.message });
             return;
         }
 
-        console.error('Error submitting registration:', error);
+        logger.error('registration.submit_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };

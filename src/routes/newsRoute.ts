@@ -1,7 +1,10 @@
 import express, { Router } from 'express'
 import multer from 'multer'
 import { deleteNews, getAdminNews, getAdminNewsById, getNews, getNewsById, getRelatedNews, postNews, postNewsImages, postNewsThumbNailImage, updateNews } from '../controller/news/newsController.js'
-import { adminMiddleware, authMiddleware } from '../middleware/authMiddleware.js';
+import { authMiddleware, requirePermission } from '../middleware/authMiddleware.js';
+import { publicCache } from '../middleware/httpPolicy.js';
+import { allowedImageMimeTypes, validateUploadedImages } from '../middleware/imageValidation.js';
+import { rateLimit } from '../middleware/rateLimit.js';
 
 const router: Router = express.Router();
 
@@ -9,42 +12,47 @@ const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 5 * 1024 * 1024 },
     fileFilter: (_req, file, cb) => {
-        if (file.mimetype.startsWith('image/')) {
+        if (allowedImageMimeTypes.includes(file.mimetype)) {
             cb(null, true);
             return;
         }
 
-        cb(new Error('Only image files are allowed'));
+        cb(new Error('UNSUPPORTED_IMAGE_TYPE'));
     },
 });
 
-router.get('/', getNews);
-router.get('/admin', authMiddleware, adminMiddleware, getAdminNews);
-router.get('/admin/:id', authMiddleware, adminMiddleware, getAdminNewsById);
-router.get('/:id/related', getRelatedNews);
-router.get('/:id', getNewsById);
-router.post('/images', authMiddleware, upload.array('images', 10), postNewsImages);
-router.post('/thumbnail-image', authMiddleware, upload.single('thumbNailImage'), postNewsThumbNailImage);
+router.get('/', publicCache(), getNews);
+router.get('/admin', authMiddleware, requirePermission('news.manage'), getAdminNews);
+router.get('/admin/:id', authMiddleware, requirePermission('news.manage'), getAdminNewsById);
+router.get('/:id/related', publicCache(), getRelatedNews);
+router.get('/:id', publicCache(), getNewsById);
+router.post('/images', authMiddleware, requirePermission('news.manage'), rateLimit({ scope: 'news.images.upload', limit: 20, windowMs: 10 * 60 * 1000 }), upload.array('images', 10), validateUploadedImages, postNewsImages);
+router.post('/thumbnail-image', authMiddleware, requirePermission('news.manage'), rateLimit({ scope: 'news.thumbnail.upload', limit: 20, windowMs: 10 * 60 * 1000 }), upload.single('thumbNailImage'), validateUploadedImages, postNewsThumbNailImage);
 router.post(
     '/',
     authMiddleware,
+    requirePermission('news.manage'),
+    rateLimit({ scope: 'news.create', limit: 30, windowMs: 10 * 60 * 1000 }),
     upload.fields([
         { name: 'thumbNailImage', maxCount: 1 },
         { name: 'images', maxCount: 10 },
     ]),
+    validateUploadedImages,
     postNews
 );
 router.put(
     '/:id',
     authMiddleware,
-    adminMiddleware,
+    requirePermission('news.manage'),
+    rateLimit({ scope: 'news.update', limit: 60, windowMs: 10 * 60 * 1000 }),
     upload.fields([
         { name: 'thumbNailImage', maxCount: 1 },
         { name: 'images', maxCount: 10 },
     ]),
+    validateUploadedImages,
     updateNews
 );
 
-router.delete('/:id', authMiddleware, adminMiddleware, deleteNews);
+router.delete('/:id', authMiddleware, requirePermission('news.manage'), deleteNews);
 
 export default router;

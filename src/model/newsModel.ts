@@ -55,6 +55,8 @@ const newsSchema = new Schema<INews>(
 
 newsSchema.index({ slug: 1 });
 newsSchema.index({ status: 1, scheduledFor: 1 });
+newsSchema.index({ status: 1, createdAt: -1 });
+newsSchema.index({ semesterId: 1, status: 1, publishedAt: -1 });
 
 const newsDb = mongoose.connection.useDb('newsDb');
 const News = newsDb.model<INews>('News', newsSchema, 'newsCollection');

@@ -18,6 +18,8 @@ const pageContentVersionSchema = new Schema<IPageContentVersion>(
     { timestamps: true }
 );
 
+pageContentVersionSchema.index({ createdAt: -1 });
+
 const pageContentDb = mongoose.connection.useDb('pageContentDb');
 const PageContentVersion = pageContentDb.model<IPageContentVersion>(
     'PageContentVersion',

@@ -12,6 +12,7 @@ import PageContent, {
     type ResearchIconKey,
 } from '../../model/pageConentModel.js';
 import PageContentVersion from '../../model/pageContentVersionModel.js';
+import { logger } from '../../utils/logger.js';
 
 const normalizeLayout = (value: unknown): IPageLayoutSection[] => {
     const knownIds = new Set<PageSectionKind>(pageSectionKinds);
@@ -181,7 +182,7 @@ export const loadDefaultPageContent = async (_req: Request, res: Response): Prom
             data: savedPageContent,
         });
     } catch (error) {
-        console.error('Error loading default page content:', error);
+        logger.error('page_content.default_load_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to load default page content' });
     }
 };
@@ -200,7 +201,7 @@ export const getPageContent = async (_req: Request, res: Response): Promise<void
             data: normalizeContentPayload(pageContent),
         });
     } catch (error) {
-        console.error('Error retrieving page content:', error);
+        logger.error('page_content.get_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to retrieve page content' });
     }
 };
@@ -224,7 +225,7 @@ export const updatePageContent = async (req: Request, res: Response): Promise<vo
             data: updatedPageContent,
         });
     } catch (error) {
-        console.error('Error updating page content:', error);
+        logger.error('page_content.update_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to update page content' });
     }
 };
@@ -247,7 +248,7 @@ export const getPageContentVersions = async (
             })),
         });
     } catch (error) {
-        console.error('Error retrieving page content versions:', error);
+        logger.error('page_content.versions_list_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to retrieve page content versions' });
     }
 };
@@ -272,7 +273,7 @@ export const getPageContentVersion = async (
             },
         });
     } catch (error) {
-        console.error('Error retrieving page content version:', error);
+        logger.error('page_content.version_get_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to retrieve page content version' });
     }
 };
@@ -313,7 +314,7 @@ export const getPageContentVersionDiff = async (
             data: diff,
         });
     } catch (error) {
-        console.error('Error retrieving page content version diff:', error);
+        logger.error('page_content.version_diff_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to retrieve page content version diff' });
     }
 };
@@ -341,7 +342,7 @@ export const restorePageContentVersionAsDraft = async (
             data: restoredVersion.toObject(),
         });
     } catch (error) {
-        console.error('Error restoring page content version:', error);
+        logger.error('page_content.version_restore_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to restore page content version' });
     }
 };
@@ -370,7 +371,7 @@ export const createPageContentVersion = async (
             data: version.toObject(),
         });
     } catch (error) {
-        console.error('Error saving page content version:', error);
+        logger.error('page_content.version_save_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to save page content version' });
     }
 };

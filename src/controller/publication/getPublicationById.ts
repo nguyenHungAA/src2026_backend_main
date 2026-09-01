@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Publication from '../../model/publicationModel.js';
 import mongoose from 'mongoose';
+import { logger } from '../../utils/logger.js';
 
 const getPublicationById = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -20,7 +21,7 @@ const getPublicationById = async (req: Request, res: Response): Promise<void> =>
 
         res.status(200).json({ message: 'Publication fetched successfully', data: publication });
     } catch (error) {
-        console.error('Error fetching publication by ID:', error);
+        logger.error('publication.get_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };

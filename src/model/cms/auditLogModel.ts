@@ -29,6 +29,8 @@ const auditLogSchema = new Schema<IAuditLog>(
 
 auditLogSchema.index({ createdAt: -1 });
 auditLogSchema.index({ action: 1, targetType: 1 });
+auditLogSchema.index({ actorEmail: 1, createdAt: -1 });
+auditLogSchema.index({ targetType: 1, createdAt: -1 });
 
 const cmsDb = mongoose.connection.useDb('cmsDb');
 const AuditLog = cmsDb.model<IAuditLog>('AuditLog', auditLogSchema, 'auditLogCollection');

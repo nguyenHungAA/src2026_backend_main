@@ -43,6 +43,7 @@ export interface IPendingPublication extends Document {
     journal: string;
     feedback: string;
     images: IPublicationImage[];
+    submissionFingerprint?: string;
 }
 
 const publicationSchema = new Schema<IPublication>(
@@ -88,6 +89,7 @@ const pendingPublicationSchema = new Schema<IPendingPublication>(
         doi: { type: String, default: '' },
         journal: { type: String, default: '' },
         feedback: { type: String, default: '' },
+        submissionFingerprint: { type: String, select: false },
         images: [
             {
                 url: { type: String, required: true },
@@ -97,6 +99,13 @@ const pendingPublicationSchema = new Schema<IPendingPublication>(
     },
     { timestamps: true }
 );
+
+publicationSchema.index({ createdAt: -1 });
+publicationSchema.index({ authorGmail: 1 });
+publicationSchema.index({ year: -1 });
+pendingPublicationSchema.index({ createdAt: -1 });
+pendingPublicationSchema.index({ authorGmail: 1 });
+pendingPublicationSchema.index({ submissionFingerprint: 1 }, { unique: true, sparse: true });
 
 const publicationDb = mongoose.connection.useDb('publicationDb');
 const Publication = publicationDb.model<IPublication>('Publication', publicationSchema, 'publicationCollection');

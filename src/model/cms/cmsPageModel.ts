@@ -35,6 +35,8 @@ const cmsPageSchema = new Schema<ICmsPage>(
 );
 
 cmsPageSchema.index({ semesterId: 1, slug: 1, status: 1 });
+cmsPageSchema.index({ status: 1, updatedAt: -1 });
+cmsPageSchema.index({ semesterId: 1, type: 1, status: 1, publishedAt: -1 });
 
 const cmsDb = mongoose.connection.useDb('cmsDb');
 const CmsPage = cmsDb.model<ICmsPage>('CmsPage', cmsPageSchema, 'cmsPageCollection');

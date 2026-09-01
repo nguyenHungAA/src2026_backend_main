@@ -9,6 +9,7 @@ import {
     sendDatabaseUnavailable,
     serializeRecord,
 } from './cmsUtils.js';
+import { logger } from '../../utils/logger.js';
 
 const readSemesterPayload = (body: Record<string, unknown>) => ({
     code: typeof body.code === 'string' ? body.code.trim() : '',
@@ -60,7 +61,7 @@ export const getAdminSemesters = async (_req: Request, res: Response): Promise<v
         const semesters = await Semester.find({}).sort({ startDate: -1 }).lean();
         res.status(200).json({ message: 'Semesters fetched successfully', data: semesters.map(serializeRecord) });
     } catch (error) {
-        console.error('Error fetching semesters:', error);
+        logger.error('semester.list_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to fetch semesters' });
     }
 };
@@ -86,7 +87,7 @@ export const getAdminSemester = async (req: Request, res: Response): Promise<voi
 
         res.status(200).json({ message: 'Semester fetched successfully', data: serializeRecord(semester) });
     } catch (error) {
-        console.error('Error fetching semester:', error);
+        logger.error('semester.get_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to fetch semester' });
     }
 };
@@ -117,7 +118,7 @@ export const createSemester = async (req: AuthenticatedRequest, res: Response): 
 
         res.status(201).json({ message: 'Semester created successfully', data: serializeRecord(semesterRecord) });
     } catch (error) {
-        console.error('Error creating semester:', error);
+        logger.error('semester.create_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to create semester' });
     }
 };
@@ -161,7 +162,7 @@ export const updateSemester = async (req: AuthenticatedRequest, res: Response): 
         await createAuditLog(req, 'semester.update', 'semester', id, { before, after: semester });
         res.status(200).json({ message: 'Semester updated successfully', data: serializeRecord(semester) });
     } catch (error) {
-        console.error('Error updating semester:', error);
+        logger.error('semester.update_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to update semester' });
     }
 };
@@ -190,7 +191,7 @@ export const activateSemester = async (req: AuthenticatedRequest, res: Response)
         await createAuditLog(req, 'semester.activate', 'semester', id, { after: semester });
         res.status(200).json({ message: 'Semester activated successfully', data: serializeRecord(semester) });
     } catch (error) {
-        console.error('Error activating semester:', error);
+        logger.error('semester.activate_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to activate semester' });
     }
 };
@@ -217,7 +218,7 @@ export const archiveSemester = async (req: AuthenticatedRequest, res: Response):
         await createAuditLog(req, 'semester.archive', 'semester', id, { after: semester });
         res.status(200).json({ message: 'Semester archived successfully', data: serializeRecord(semester) });
     } catch (error) {
-        console.error('Error archiving semester:', error);
+        logger.error('semester.archive_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to archive semester' });
     }
 };
@@ -258,7 +259,7 @@ export const duplicateSemester = async (req: AuthenticatedRequest, res: Response
 
         res.status(201).json({ message: 'Semester duplicated successfully', data: serializeRecord(duplicate.toObject()) });
     } catch (error) {
-        console.error('Error duplicating semester:', error);
+        logger.error('semester.duplicate_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to duplicate semester' });
     }
 };

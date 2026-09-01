@@ -9,7 +9,7 @@ const swaggerDocument = {
     openapi: '3.0.3',
     info: {
         title: 'SRC2026 Backend API',
-        version: '1.0.0',
+        version: '1.1.0',
         description: 'Interactive documentation for all mounted SRC2026 backend endpoints.',
     },
     servers: [
@@ -25,6 +25,8 @@ const swaggerDocument = {
         { name: 'Registrations', description: 'Public competition registration endpoints' },
         { name: 'News', description: 'News article endpoints' },
         { name: 'Page Content', description: 'Competition page content, layout, and version history endpoints' },
+        { name: 'Analytics', description: 'Permission-protected aggregate management metrics' },
+        { name: 'Operations', description: 'Health, readiness, outbox, and protected maintenance endpoints' },
     ],
     paths: {
         '/': {
@@ -56,6 +58,61 @@ const swaggerDocument = {
                             },
                         },
                     },
+                },
+            },
+        },
+        '/health': {
+            get: {
+                tags: ['Operations'],
+                summary: 'Process liveness check',
+                responses: {
+                    '200': { description: 'Process is running; includes releaseSha' },
+                },
+            },
+        },
+        '/ready': {
+            get: {
+                tags: ['Operations'],
+                summary: 'Database readiness check',
+                responses: {
+                    '200': { description: 'Application and database are ready' },
+                    '503': { description: 'Database is unavailable' },
+                },
+            },
+        },
+        '/api/v1/email-notifications/admin/summary': {
+            get: {
+                tags: ['Operations'],
+                summary: 'Get email outbox counts and oldest records by status',
+                security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+                responses: {
+                    '200': { description: 'Outbox summary' },
+                    '401': { description: 'Authentication required' },
+                    '403': { description: 'audit.read permission required' },
+                },
+            },
+        },
+        '/api/v1/maintenance/internal/run': {
+            get: {
+                tags: ['Operations'],
+                summary: 'Process email outbox and orphaned legacy media',
+                description: 'Internal scheduler endpoint authenticated with Authorization: Bearer <CRON_SECRET>.',
+                parameters: [
+                    { name: 'emailLimit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 50 } },
+                    { name: 'mediaLimit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 100 } },
+                ],
+                responses: {
+                    '200': { description: 'Maintenance run summary' },
+                    '401': { description: 'Missing or invalid cron secret' },
+                },
+            },
+            post: {
+                tags: ['Operations'],
+                summary: 'Manually process scheduled maintenance',
+                description: 'Equivalent protected operation for an external scheduler or operator.',
+                responses: {
+                    '200': { description: 'Maintenance run summary' },
+                    '401': { description: 'Missing or invalid cron secret' },
                 },
             },
         },
@@ -147,11 +204,15 @@ const swaggerDocument = {
                 },
             },
         },
-        '/publication': {
+        '/api/v1/publication': {
             get: {
                 tags: ['Publications'],
                 summary: 'Get all publications',
                 description: 'Retrieve all publications, sorted by newest first.',
+                parameters: [
+                    { $ref: '#/components/parameters/Page' },
+                    { $ref: '#/components/parameters/Limit' },
+                ],
                 responses: {
                     '200': {
                         description: 'Publications fetched successfully',
@@ -165,7 +226,7 @@ const swaggerDocument = {
                 },
             },
         },
-        '/publication/{id}': {
+        '/api/v1/publication/{id}': {
             get: {
                 tags: ['Publications'],
                 summary: 'Get publication by ID',
@@ -212,11 +273,12 @@ const swaggerDocument = {
                 },
             },
         },
-        '/publication/submit': {
+        '/api/v1/publication/submit': {
             post: {
                 tags: ['Publications'],
                 summary: 'Submit a publication',
-                description: 'Create a publication and send a non-blocking notification email.',
+                description: 'Create an idempotent pending publication after Turnstile verification and queue an email notification.',
+                parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }],
                 requestBody: {
                     required: true,
                     content: {
@@ -228,7 +290,7 @@ const swaggerDocument = {
                                 publishDate: '2026-05-22',
                                 content: 'Publication content...',
                                 authorGmail: 'author@example.com',
-                                doi: 'https://doi.org/10.1016/example',
+                                doi: '10.1016/example',
                                 journal: 'Journal of Experimental Software Systems',
                                 images: [
                                     {
@@ -258,15 +320,19 @@ const swaggerDocument = {
                             },
                         },
                     },
+                    '409': { description: 'Duplicate submission or idempotency conflict' },
+                    '429': { description: 'Rate limit exceeded' },
+                    '503': { description: 'Turnstile, idempotency, or database unavailable' },
                     '500': { $ref: '#/components/responses/InternalServerError' },
                 },
             },
         },
-        '/publication/upload-image': {
+        '/api/v1/publication/upload-image': {
             post: {
                 tags: ['Publications'],
                 summary: 'Upload a publication image',
-                description: 'Upload an image to Cloudinary. The multipart form field must be named "image".',
+                description: 'Upload a validated JPEG, PNG, or WebP image to Cloudinary. Requires publications.manage.',
+                security: [{ cookieAuth: [] }, { bearerAuth: [] }],
                 requestBody: {
                     required: true,
                     content: {
@@ -315,7 +381,7 @@ const swaggerDocument = {
                 },
             },
         },
-        '/publication/delete-image': {
+        '/api/v1/publication/delete-image': {
             post: {
                 tags: ['Publications'],
                 summary: 'Delete a publication image',
@@ -371,11 +437,15 @@ const swaggerDocument = {
                 },
             },
         },
-        '/mentor': {
+        '/api/v1/mentor': {
             get: {
                 tags: ['Mentors'],
                 summary: 'Get all mentors',
                 description: 'Retrieve all mentors from the mentors database.',
+                parameters: [
+                    { $ref: '#/components/parameters/Page' },
+                    { $ref: '#/components/parameters/Limit' },
+                ],
                 responses: {
                     '200': {
                         description: 'Mentors fetched successfully',
@@ -389,11 +459,12 @@ const swaggerDocument = {
                 },
             },
         },
-        '/mentor/submit': {
+        '/api/v1/mentor/submit': {
             post: {
                 tags: ['Mentors'],
                 summary: 'Submit a mentor profile',
                 description: 'Create or update a pending mentor profile from a JSON object. Existing pending profiles are matched by email.',
+                parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }],
                 requestBody: {
                     required: true,
                     content: {
@@ -406,7 +477,7 @@ const swaggerDocument = {
                                 phone: '+84 901 234 567',
                                 email: 'mentor@example.com',
                                 personalWebsite: 'https://example.com',
-                                orcid: '0000-0000-0000-0000',
+                                orcid: 'https://orcid.org/0000-0000-0000-0000',
                                 researchGate: 'https://www.researchgate.net/profile/example',
                                 googleScholar: 'https://scholar.google.com/citations?user=example',
                                 researchAreas: 'Artificial Intelligence',
@@ -435,15 +506,19 @@ const swaggerDocument = {
                             },
                         },
                     },
+                    '409': { description: 'Idempotency conflict' },
+                    '429': { description: 'Rate limit exceeded' },
+                    '503': { description: 'Turnstile, idempotency, or database unavailable' },
                     '500': { $ref: '#/components/responses/InternalServerError' },
                 },
             },
         },
-        '/mentor/upload-avatar': {
+        '/api/v1/mentor/upload-avatar': {
             post: {
                 tags: ['Mentors'],
                 summary: 'Upload a mentor avatar',
-                description: 'Upload a square-cropped mentor avatar to Cloudinary. The multipart form field must be named "avatar".',
+                description: 'Upload a validated square-cropped mentor avatar. Requires mentors.manage.',
+                security: [{ cookieAuth: [] }, { bearerAuth: [] }],
                 requestBody: {
                     required: true,
                     content: {
@@ -496,7 +571,8 @@ const swaggerDocument = {
             post: {
                 tags: ['Registrations'],
                 summary: 'Submit a competition registration',
-                description: 'Validate and store a public registration in registrationDb.registrationCollection.',
+                description: 'Validate, deduplicate, and store a registration after Turnstile verification.',
+                parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }],
                 requestBody: {
                     required: true,
                     content: {
@@ -530,15 +606,22 @@ const swaggerDocument = {
                             },
                         },
                     },
+                    '409': { description: 'Duplicate registration or idempotency conflict' },
+                    '429': { description: 'Rate limit exceeded' },
+                    '503': { description: 'Turnstile, idempotency, or database unavailable' },
                     '500': { $ref: '#/components/responses/InternalServerError' },
                 },
             },
         },
-        '/news': {
+        '/api/v1/news': {
             get: {
                 tags: ['News'],
                 summary: 'Get all news',
-                description: 'Retrieve all news articles, sorted by newest first.',
+                description: 'Retrieve published and legacy news articles, sorted by newest first.',
+                parameters: [
+                    { $ref: '#/components/parameters/Page' },
+                    { $ref: '#/components/parameters/Limit' },
+                ],
                 responses: {
                     '200': {
                         description: 'News fetched successfully',
@@ -552,9 +635,94 @@ const swaggerDocument = {
                 },
             },
         },
+        '/api/v1/admin/analytics/summary': {
+            get: {
+                tags: ['Analytics'],
+                summary: 'Get aggregate management metrics',
+                security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+                parameters: [
+                    { $ref: '#/components/parameters/FromDate' },
+                    { $ref: '#/components/parameters/ToDate' },
+                    {
+                        name: 'semesterId',
+                        in: 'query',
+                        schema: { type: 'string', maxLength: 120 },
+                    },
+                ],
+                responses: {
+                    '200': { description: 'Aggregate metrics without personal records' },
+                    '400': { description: 'Invalid date range' },
+                    '401': { description: 'Authentication required' },
+                    '403': { description: 'dashboard.read permission required' },
+                },
+            },
+        },
+        '/api/v1/admin/analytics/export.csv': {
+            get: {
+                tags: ['Analytics'],
+                summary: 'Export aggregate management metrics as CSV',
+                security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+                parameters: [
+                    { $ref: '#/components/parameters/FromDate' },
+                    { $ref: '#/components/parameters/ToDate' },
+                ],
+                responses: {
+                    '200': {
+                        description: 'UTF-8 CSV report',
+                        content: { 'text/csv': { schema: { type: 'string' } } },
+                    },
+                    '401': { description: 'Authentication required' },
+                    '403': { description: 'dashboard.read permission required' },
+                },
+            },
+        },
     },
     components: {
+        securitySchemes: {
+            bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+            cookieAuth: { type: 'apiKey', in: 'cookie', name: 'accessToken' },
+        },
+        parameters: {
+            IdempotencyKey: {
+                name: 'Idempotency-Key',
+                in: 'header',
+                required: false,
+                description: 'A unique 16-128 character key retained across safe retries. Legacy clients receive deterministic duplicate protection.',
+                schema: { type: 'string', minLength: 16, maxLength: 128 },
+            },
+            Page: {
+                name: 'page',
+                in: 'query',
+                description: 'Enables paginated mode. Defaults to 1 when limit is supplied.',
+                schema: { type: 'integer', minimum: 1 },
+            },
+            Limit: {
+                name: 'limit',
+                in: 'query',
+                description: 'Enables paginated mode. Defaults to 20 and is capped at 100.',
+                schema: { type: 'integer', minimum: 1, maximum: 100 },
+            },
+            FromDate: {
+                name: 'from',
+                in: 'query',
+                schema: { type: 'string', format: 'date' },
+            },
+            ToDate: {
+                name: 'to',
+                in: 'query',
+                schema: { type: 'string', format: 'date' },
+            },
+        },
         responses: {
+            NotFound: {
+                description: 'Resource not found',
+                content: {
+                    'application/json': {
+                        schema: { $ref: '#/components/schemas/MessageResponse' },
+                        example: { message: 'Resource not found' },
+                    },
+                },
+            },
             InternalServerError: {
                 description: 'Internal server error',
                 content: {

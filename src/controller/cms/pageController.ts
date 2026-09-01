@@ -11,6 +11,7 @@ import {
     sendDatabaseUnavailable,
     serializeRecord,
 } from './cmsUtils.js';
+import { logger } from '../../utils/logger.js';
 
 const readPagePayload = (body: Record<string, unknown>) => ({
     semesterId: typeof body.semesterId === 'string' ? body.semesterId.trim() : undefined,
@@ -45,7 +46,7 @@ export const getAdminPages = async (req: Request, res: Response): Promise<void> 
         const pages = await CmsPage.find(filter).sort({ updatedAt: -1 }).lean();
         res.status(200).json({ message: 'Pages fetched successfully', data: pages.map(serializeRecord) });
     } catch (error) {
-        console.error('Error fetching admin pages:', error);
+        logger.error('cms_page.list_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to fetch pages' });
     }
 };
@@ -71,7 +72,7 @@ export const getAdminPage = async (req: Request, res: Response): Promise<void> =
 
         res.status(200).json({ message: 'Page fetched successfully', data: serializeRecord(page) });
     } catch (error) {
-        console.error('Error fetching admin page:', error);
+        logger.error('cms_page.get_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to fetch page' });
     }
 };
@@ -104,7 +105,7 @@ export const createDraftPage = async (req: AuthenticatedRequest, res: Response):
 
         res.status(201).json({ message: 'Draft page created successfully', data: serializeRecord(pageRecord) });
     } catch (error) {
-        console.error('Error creating draft page:', error);
+        logger.error('cms_page.create_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to create draft page' });
     }
 };
@@ -149,7 +150,7 @@ export const updateDraftPage = async (req: AuthenticatedRequest, res: Response):
         await createAuditLog(req, 'page.updateDraft', 'page', id, { before, after: page });
         res.status(200).json({ message: 'Draft page updated successfully', data: serializeRecord(page) });
     } catch (error) {
-        console.error('Error updating draft page:', error);
+        logger.error('cms_page.update_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to update draft page' });
     }
 };
@@ -172,6 +173,24 @@ const updatePageStatus = async (
     }
 
     const before = await CmsPage.findById(id).lean();
+    if (!before) {
+        res.status(404).json({ message: 'Page not found' });
+        return;
+    }
+
+    const allowedSourceStatus: Record<typeof status, string> = {
+        review: 'draft',
+        published: 'review',
+        archived: 'published',
+    };
+    if (before.status !== allowedSourceStatus[status]) {
+        res.status(409).json({
+            code: 'INVALID_STATUS_TRANSITION',
+            message: `Page must be ${allowedSourceStatus[status]} before it can become ${status}`,
+        });
+        return;
+    }
+
     const update: Record<string, unknown> = { status, updatedBy: req.user?.id };
     if (status === 'published') {
         update.publishedBy = req.user?.id;
@@ -180,7 +199,7 @@ const updatePageStatus = async (
 
     const page = await CmsPage.findByIdAndUpdate(id, update, { new: true }).lean();
     if (!page) {
-        res.status(404).json({ message: 'Page not found' });
+        res.status(409).json({ message: 'Page changed while its status was being updated' });
         return;
     }
 
@@ -192,7 +211,7 @@ export const submitPageForReview = async (req: AuthenticatedRequest, res: Respon
     try {
         await updatePageStatus(req, res, 'review', 'page.submitReview');
     } catch (error) {
-        console.error('Error submitting page for review:', error);
+        logger.error('cms_page.submit_review_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to submit page for review' });
     }
 };
@@ -201,7 +220,7 @@ export const publishPage = async (req: AuthenticatedRequest, res: Response): Pro
     try {
         await updatePageStatus(req, res, 'published', 'page.publish');
     } catch (error) {
-        console.error('Error publishing page:', error);
+        logger.error('cms_page.publish_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to publish page' });
     }
 };
@@ -210,7 +229,7 @@ export const archivePage = async (req: AuthenticatedRequest, res: Response): Pro
     try {
         await updatePageStatus(req, res, 'archived', 'page.archive');
     } catch (error) {
-        console.error('Error archiving page:', error);
+        logger.error('cms_page.archive_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to archive page' });
     }
 };
@@ -239,7 +258,7 @@ export const getCurrentHomepage = async (_req: Request, res: Response): Promise<
 
         res.status(200).json({ message: 'Homepage fetched successfully', data: serializeRecord(page) });
     } catch (error) {
-        console.error('Error fetching current homepage:', error);
+        logger.error('cms_page.current_homepage_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to fetch homepage' });
     }
 };
@@ -271,7 +290,7 @@ export const getSemesterHomepage = async (req: Request, res: Response): Promise<
 
         res.status(200).json({ message: 'Homepage fetched successfully', data: serializeRecord(page) });
     } catch (error) {
-        console.error('Error fetching semester homepage:', error);
+        logger.error('cms_page.semester_homepage_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to fetch homepage' });
     }
 };

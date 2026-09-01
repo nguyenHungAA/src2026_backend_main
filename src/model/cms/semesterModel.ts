@@ -27,6 +27,8 @@ const semesterSchema = new Schema<ISemester>(
     { timestamps: true }
 );
 
+semesterSchema.index({ status: 1, startDate: -1 });
+
 const cmsDb = mongoose.connection.useDb('cmsDb');
 const Semester = cmsDb.model<ISemester>('Semester', semesterSchema, 'semesterCollection');
 

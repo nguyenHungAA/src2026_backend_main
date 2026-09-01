@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Publication, { PendingPublication } from '../../model/publicationModel.js';
+import { logger } from '../../utils/logger.js';
 
 const publicationEditableFields = [
     'publishTitle',
@@ -72,7 +73,7 @@ export const getAdminPublications = async (_req: Request, res: Response): Promis
         const publications = await Publication.find({}).sort({ createdAt: -1 }).lean();
         res.status(200).json({ message: 'Publications fetched successfully', data: publications });
     } catch (error) {
-        console.error('Error fetching admin publications:', error);
+        logger.error('admin_publication.list_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -95,7 +96,7 @@ export const getAdminPublicationById = async (req: Request, res: Response): Prom
 
         res.status(200).json({ message: 'Publication fetched successfully', data: publication });
     } catch (error) {
-        console.error('Error fetching admin publication:', error);
+        logger.error('admin_publication.get_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -113,7 +114,7 @@ export const createAdminPublication = async (req: Request, res: Response): Promi
         const publication = await Publication.create(payload);
         res.status(201).json({ message: 'Publication created successfully', data: publication });
     } catch (error) {
-        console.error('Error creating admin publication:', error);
+        logger.error('admin_publication.create_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -147,7 +148,7 @@ export const updateAdminPublication = async (req: Request, res: Response): Promi
 
         res.status(200).json({ message: 'Publication updated successfully', data: publication });
     } catch (error) {
-        console.error('Error updating admin publication:', error);
+        logger.error('admin_publication.update_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -170,7 +171,7 @@ export const deleteAdminPublication = async (req: Request, res: Response): Promi
 
         res.status(200).json({ message: 'Publication deleted successfully' });
     } catch (error) {
-        console.error('Error deleting admin publication:', error);
+        logger.error('admin_publication.delete_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -180,7 +181,7 @@ export const getPendingPublications = async (_req: Request, res: Response): Prom
         const publications = await PendingPublication.find({}).sort({ createdAt: -1 }).lean();
         res.status(200).json({ message: 'Pending publications fetched successfully', data: publications });
     } catch (error) {
-        console.error('Error fetching pending publications:', error);
+        logger.error('pending_publication.list_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -223,7 +224,7 @@ export const approvePendingPublication = async (req: Request, res: Response): Pr
             data: publication,
         });
     } catch (error) {
-        console.error('Error approving pending publication:', error);
+        logger.error('pending_publication.approve_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -246,7 +247,7 @@ export const declinePendingPublication = async (req: Request, res: Response): Pr
 
         res.status(200).json({ message: 'Publication declined successfully' });
     } catch (error) {
-        console.error('Error declining pending publication:', error);
+        logger.error('pending_publication.decline_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };

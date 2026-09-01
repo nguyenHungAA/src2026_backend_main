@@ -6,6 +6,7 @@ import {
     sendDatabaseUnavailable,
     serializeRecord,
 } from './cmsUtils.js';
+import { logger } from '../../utils/logger.js';
 
 export const getAuditLogs = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -29,7 +30,7 @@ export const getAuditLogs = async (req: Request, res: Response): Promise<void> =
         const logs = await AuditLog.find(filter).sort({ createdAt: -1 }).limit(200).lean();
         res.status(200).json({ message: 'Audit logs fetched successfully', data: logs.map(serializeRecord) });
     } catch (error) {
-        console.error('Error fetching audit logs:', error);
+        logger.error('audit_log.list_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to fetch audit logs' });
     }
 };
@@ -55,7 +56,7 @@ export const getAuditLog = async (req: Request, res: Response): Promise<void> =>
 
         res.status(200).json({ message: 'Audit log fetched successfully', data: serializeRecord(log) });
     } catch (error) {
-        console.error('Error fetching audit log:', error);
+        logger.error('audit_log.get_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to fetch audit log' });
     }
 };

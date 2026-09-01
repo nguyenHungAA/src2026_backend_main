@@ -1,5 +1,4 @@
 import { Request, Response } from 'express';
-import cloudinary, { assertCloudinaryConfigured } from '../../config/cloudinary.js';
 import MediaAsset from '../../model/cms/mediaAssetModel.js';
 import type { AuthenticatedRequest } from '../../middleware/authMiddleware.js';
 import {
@@ -9,6 +8,9 @@ import {
     sendDatabaseUnavailable,
     serializeRecord,
 } from './cmsUtils.js';
+import { destroyImage, uploadImageBuffer, type CloudinaryImageResult } from '../../service/cloudinaryService.js';
+import { logger } from '../../utils/logger.js';
+import { findAssetUsages } from '../../service/mediaAssetService.js';
 
 const parseMetadata = (value: unknown) => {
     if (typeof value !== 'string') return {};
@@ -20,44 +22,10 @@ const parseMetadata = (value: unknown) => {
     }
 };
 
-const uploadMedia = async (file: Express.Multer.File) =>
-    new Promise<{
-        secure_url: string;
-        public_id: string;
-        width?: number;
-        height?: number;
-        bytes?: number;
-        format?: string;
-    }>((resolve, reject) => {
-        assertCloudinaryConfigured();
-
-        const stream = cloudinary.uploader.upload_stream(
-            {
-                folder: 'src2026/cms/media',
-                resource_type: 'image',
-                transformation: [
-                    { quality: 'auto', fetch_format: 'auto' },
-                ],
-            },
-            (error, result) => {
-                if (error || !result) {
-                    reject(error || new Error('Upload failed'));
-                    return;
-                }
-
-                resolve({
-                    secure_url: result.secure_url,
-                    public_id: result.public_id,
-                    width: result.width,
-                    height: result.height,
-                    bytes: result.bytes,
-                    format: result.format,
-                });
-            }
-        );
-
-        stream.end(file.buffer);
-    });
+const uploadMedia = async (file: Express.Multer.File) => uploadImageBuffer(file.buffer, {
+    folder: 'src2026/cms/media',
+    transformation: [{ quality: 'auto', fetch_format: 'auto' }],
+});
 
 export const getMediaAssets = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -74,12 +42,13 @@ export const getMediaAssets = async (req: Request, res: Response): Promise<void>
         const assets = await MediaAsset.find(filter).sort({ createdAt: -1 }).lean();
         res.status(200).json({ message: 'Media assets fetched successfully', data: assets.map(serializeRecord) });
     } catch (error) {
-        console.error('Error fetching media assets:', error);
+        logger.error('media.list_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to fetch media assets' });
     }
 };
 
 export const uploadMediaAsset = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    let uploaded: CloudinaryImageResult | null = null;
     try {
         if (!req.file) {
             res.status(400).json({ message: 'No media file provided' });
@@ -93,9 +62,10 @@ export const uploadMediaAsset = async (req: AuthenticatedRequest, res: Response)
 
         const metadata = parseMetadata(req.body?.metadata);
         const result = await uploadMedia(req.file);
+        uploaded = result;
         const asset = await MediaAsset.create({
-            url: result.secure_url,
-            publicId: result.public_id,
+            url: result.secureUrl,
+            publicId: result.publicId,
             filename: req.file.originalname,
             mimeType: req.file.mimetype,
             size: result.bytes ?? req.file.size,
@@ -105,6 +75,7 @@ export const uploadMediaAsset = async (req: AuthenticatedRequest, res: Response)
             caption: typeof metadata.caption === 'string' ? metadata.caption : '',
             tags: Array.isArray(metadata.tags) ? metadata.tags.filter((tag): tag is string => typeof tag === 'string') : [],
             uploadedBy: req.user?.id,
+            source: 'cms',
         });
 
         await createAuditLog(req, 'media.upload', 'mediaAsset', String(asset._id), {
@@ -113,9 +84,17 @@ export const uploadMediaAsset = async (req: AuthenticatedRequest, res: Response)
 
         res.status(201).json({ message: 'Media asset uploaded successfully', data: serializeRecord(asset.toObject()) });
     } catch (error) {
-        console.error('Error uploading media asset:', error);
-        res.status(500).json({
-            message: error instanceof Error ? error.message : 'Failed to upload media asset',
+        if (uploaded) {
+            await destroyImage(uploaded.publicId).catch((cleanupError) => logger.error('media.compensation_failed', cleanupError, {
+                requestId: res.locals.requestId,
+                publicId: uploaded?.publicId,
+            }));
+        }
+        logger.error('media.upload_failed', error, { requestId: res.locals.requestId });
+        res.status(502).json({
+            code: 'UPLOAD_PROVIDER_UNAVAILABLE',
+            message: 'Failed to upload media asset',
+            requestId: res.locals.requestId,
         });
     }
 };
@@ -152,14 +131,16 @@ export const updateMediaAsset = async (req: AuthenticatedRequest, res: Response)
         await createAuditLog(req, 'media.update', 'mediaAsset', id, { before, after: asset });
         res.status(200).json({ message: 'Media asset updated successfully', data: serializeRecord(asset) });
     } catch (error) {
-        console.error('Error updating media asset:', error);
+        logger.error('media.update_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Failed to update media asset' });
     }
 };
 
 export const deleteMediaAsset = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    let assetId = '';
     try {
         const id = String(req.params.id ?? '');
+        assetId = id;
         if (!isValidObjectId(id)) {
             res.status(400).json({ message: 'Invalid media asset ID' });
             return;
@@ -170,25 +151,50 @@ export const deleteMediaAsset = async (req: AuthenticatedRequest, res: Response)
             return;
         }
 
-        const asset = await MediaAsset.findByIdAndDelete(id).lean();
+        const asset = await MediaAsset.findById(id);
         if (!asset) {
             res.status(404).json({ message: 'Media asset not found' });
             return;
         }
 
-        assertCloudinaryConfigured();
-        await cloudinary.uploader.destroy(asset.publicId);
-        await createAuditLog(req, 'media.delete', 'mediaAsset', id, { before: asset });
+        const usages = await findAssetUsages(asset);
+        if (usages.length > 0) {
+            res.status(409).json({ code: 'ASSET_IN_USE', message: 'Media asset is still referenced.', data: usages });
+            return;
+        }
+
+        asset.status = 'delete_pending';
+        asset.lastDeleteErrorCode = undefined;
+        await asset.save();
+        const result = await destroyImage(asset.publicId);
+        if (result !== 'ok' && result !== 'not found') throw new Error(`Unexpected Cloudinary delete result: ${result}`);
+        const before = asset.toObject();
+        await MediaAsset.deleteOne({ _id: id });
+        await createAuditLog(req, 'media.delete', 'mediaAsset', id, { before });
         res.status(200).json({ message: 'Media asset deleted successfully' });
     } catch (error) {
-        console.error('Error deleting media asset:', error);
-        res.status(500).json({ message: 'Failed to delete media asset' });
+        if (assetId && isValidObjectId(assetId)) {
+            await MediaAsset.updateOne(
+                { _id: assetId },
+                { $set: { status: 'delete_failed', lastDeleteErrorCode: 'UPLOAD_PROVIDER_UNAVAILABLE' } },
+            ).catch(() => undefined);
+        }
+        logger.error('media.delete_failed', error, { requestId: res.locals.requestId, assetId });
+        res.status(502).json({ code: 'UPLOAD_PROVIDER_UNAVAILABLE', message: 'Failed to delete media asset', requestId: res.locals.requestId });
     }
 };
 
-export const getMediaAssetUsages = async (_req: Request, res: Response): Promise<void> => {
-    res.status(200).json({
-        message: 'Media asset usages fetched successfully',
-        data: [],
-    });
+export const getMediaAssetUsages = async (req: Request, res: Response): Promise<void> => {
+    const id = String(req.params.id ?? '');
+    if (!isValidObjectId(id)) {
+        res.status(400).json({ message: 'Invalid media asset ID' });
+        return;
+    }
+    const asset = await MediaAsset.findById(id).lean();
+    if (!asset) {
+        res.status(404).json({ message: 'Media asset not found' });
+        return;
+    }
+    const usages = await findAssetUsages(asset);
+    res.status(200).json({ message: 'Media asset usages fetched successfully', data: usages });
 };

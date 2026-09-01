@@ -1,35 +1,48 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import News from '../../model/newsModel.js';
-import cloudinary from '../../config/cloudinary.js';
 import connectDB from '../../config/db.js';
+import { createPaginationMeta, parsePagination } from '../../utils/pagination.js';
+import { uploadImageBuffer } from '../../service/cloudinaryService.js';
+import { logger } from '../../utils/logger.js';
+
+const publicNewsFilter = {
+    $or: [
+        { status: 'published' as const },
+        { status: { $exists: false } },
+    ],
+};
+
+const relatedNewsFields = [
+    'title',
+    'slug',
+    'description',
+    'summary',
+    'thumbNailImage',
+    'images',
+    'date',
+    'author',
+    'coverImageUrl',
+    'category',
+    'tags',
+    'isPinned',
+    'isFeatured',
+    'publishedAt',
+    'createdAt',
+    'updatedAt',
+].join(' ');
 
 const uploadNewsImage = async (
     file: Express.Multer.File,
     folder: string
 ): Promise<string> =>
-    new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-            {
-                folder,
-                resource_type: 'image',
-                transformation: [
-                    { width: 800, height: 600, crop: 'fit' },
-                    { quality: 'auto', fetch_format: 'auto' },
-                ],
-            },
-            (error, result) => {
-                if (error || !result) {
-                    reject(error || new Error('Upload failed'));
-                    return;
-                }
-
-                resolve(result.secure_url);
-            }
-        );
-
-        stream.end(file.buffer);
-    });
+    uploadImageBuffer(file.buffer, {
+        folder,
+        transformation: [
+            { width: 800, height: 600, crop: 'fit' },
+            { quality: 'auto', fetch_format: 'auto' },
+        ],
+    }).then((result) => result.secureUrl);
 
 const parseImages = (images: unknown): string[] => {
     if (Array.isArray(images)) {
@@ -78,39 +91,41 @@ const sendDatabaseUnavailable = (res: Response) => {
     res.status(503).json({ message: 'Database is not connected. Check MONGO_URI and MongoDB network access.' });
 };
 
-const relatedNewsFields = [
-    'title',
-    'slug',
-    'description',
-    'summary',
-    'thumbNailImage',
-    'images',
-    'date',
-    'author',
-    'coverImageUrl',
-    'category',
-    'tags',
-    'isPinned',
-    'isFeatured',
-    'publishedAt',
-    'createdAt',
-    'updatedAt',
-].join(' ');
-
-const publicNewsFilter = { status: 'published' as const };
-
-const getNews = async (_req: Request, res: Response): Promise<void> => {
+const getNews = async (req: Request, res: Response): Promise<void> => {
     try {
         if (!(await ensureMongoConnected())) {
             sendDatabaseUnavailable(res);
             return;
         }
 
-        const news = await News.find(publicNewsFilter).sort({ createdAt: -1 }).lean();
+        const { pagination, error } = parsePagination(req.query);
+        if (error) {
+            res.status(400).json({ code: 'INVALID_PAGINATION', message: error });
+            return;
+        }
 
-        res.status(200).json({ message: 'News fetched successfully', data: news });
+        if (!pagination) {
+            const news = await News.find(publicNewsFilter).sort({ createdAt: -1 }).lean();
+            res.status(200).json({ message: 'News fetched successfully', data: news });
+            return;
+        }
+
+        const [news, total] = await Promise.all([
+            News.find(publicNewsFilter)
+                .sort({ createdAt: -1 })
+                .skip(pagination.skip)
+                .limit(pagination.limit)
+                .lean(),
+            News.countDocuments(publicNewsFilter),
+        ]);
+
+        res.status(200).json({
+            message: 'News fetched successfully',
+            data: news,
+            meta: createPaginationMeta(total, pagination),
+        });
     } catch (error) {
-        console.error('Error fetching news:', error);
+        logger.error('news.list_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -138,7 +153,7 @@ const getNewsById = async (req: Request, res: Response): Promise<void> => {
 
         res.status(200).json({ message: 'News fetched successfully', data: news });
     } catch (error) {
-        console.error('Error fetching news by ID:', error);
+        logger.error('news.get_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -182,10 +197,9 @@ const getRelatedNews = async (req: Request, res: Response): Promise<void> => {
             _id: { $ne: id },
             ...publicNewsFilter,
         };
-        const relatedFilter =
-            relatedConditions.length > 0
-                ? { ...baseFilter, $or: relatedConditions }
-                : baseFilter;
+        const relatedFilter = relatedConditions.length > 0
+            ? { ...baseFilter, $or: relatedConditions }
+            : baseFilter;
 
         const relatedNews = await News.find(relatedFilter)
             .select(relatedNewsFields)
@@ -200,9 +214,7 @@ const getRelatedNews = async (req: Request, res: Response): Promise<void> => {
 
         const fallbackNews = await News.find({
             ...publicNewsFilter,
-            _id: {
-                $nin: [id, ...relatedNews.map((item) => item._id)],
-            },
+            _id: { $nin: [id, ...relatedNews.map((item) => item._id)] },
         })
             .select(relatedNewsFields)
             .sort({ createdAt: -1 })
@@ -214,7 +226,7 @@ const getRelatedNews = async (req: Request, res: Response): Promise<void> => {
             data: [...relatedNews, ...fallbackNews],
         });
     } catch (error) {
-        console.error('Error fetching related news:', error);
+        logger.error('news.related_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -227,10 +239,9 @@ const getAdminNews = async (_req: Request, res: Response): Promise<void> => {
         }
 
         const news = await News.find({}).sort({ createdAt: -1 }).lean();
-
         res.status(200).json({ message: 'Admin news fetched successfully', data: news });
     } catch (error) {
-        console.error('Error fetching admin news:', error);
+        logger.error('news.admin_list_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -250,7 +261,6 @@ const getAdminNewsById = async (req: Request, res: Response): Promise<void> => {
         }
 
         const news = await News.findById(id).lean();
-
         if (!news) {
             res.status(404).json({ message: 'News not found' });
             return;
@@ -258,7 +268,7 @@ const getAdminNewsById = async (req: Request, res: Response): Promise<void> => {
 
         res.status(200).json({ message: 'Admin news fetched successfully', data: news });
     } catch (error) {
-        console.error('Error fetching admin news by ID:', error);
+        logger.error('news.admin_get_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -281,7 +291,7 @@ const postNewsImages = async (req: Request, res: Response): Promise<void> => {
             data: imageUrls,
         });
     } catch (error) {
-        console.error('Error posting news images:', error);
+        logger.error('news.images_upload_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -300,7 +310,7 @@ const postNewsThumbNailImage = async (req: Request, res: Response): Promise<void
             data: { thumbNailImage },
         });
     } catch (error) {
-        console.error('Error posting news thumbnail image:', error);
+        logger.error('news.thumbnail_upload_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -382,7 +392,7 @@ const postNews = async (req: Request, res: Response): Promise<void> => {
         await news.save();
         res.status(201).json({ message: 'News created successfully', data: news });
     } catch (error) {
-        console.error('Error posting news:', error);
+        logger.error('news.create_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -478,7 +488,7 @@ const updateNews = async (req: Request, res: Response): Promise<void> => {
 
         res.status(200).json({ message: 'News updated successfully', data: updatedNews });
     } catch (error) {
-        console.error('Error updating news:', error);
+        logger.error('news.update_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -506,7 +516,7 @@ const deleteNews = async (req: Request, res: Response): Promise<void> => {
 
         res.status(200).json({ message: 'News deleted successfully', data: deletedNews });
     } catch (error) {
-        console.error('Error deleting news:', error);
+        logger.error('news.delete_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };

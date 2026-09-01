@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import PendingMentorProfile, { MentorProfile } from '../../model/mentorProfileModel.js';
+import { logger } from '../../utils/logger.js';
 
 const flexibleMentorSchema = new mongoose.Schema({}, { strict: false });
 const mentorsDb = mongoose.connection.useDb('mentorsDb');
@@ -46,7 +47,7 @@ export const getAdminMentors = async (_req: Request, res: Response): Promise<voi
         const mentors = await AdminMentor.find({}).sort({ createdAt: -1 }).lean();
         res.status(200).json({ message: 'Mentors fetched successfully', data: mentors });
     } catch (error) {
-        console.error('Error fetching admin mentors:', error);
+        logger.error('admin_mentor.list_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -69,7 +70,7 @@ export const getAdminMentorById = async (req: Request, res: Response): Promise<v
 
         res.status(200).json({ message: 'Mentor fetched successfully', data: mentor });
     } catch (error) {
-        console.error('Error fetching admin mentor:', error);
+        logger.error('admin_mentor.get_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -87,7 +88,7 @@ export const createAdminMentor = async (req: Request, res: Response): Promise<vo
         const mentor = await MentorProfile.create(payload);
         res.status(201).json({ message: 'Mentor created successfully', data: mentor });
     } catch (error) {
-        console.error('Error creating admin mentor:', error);
+        logger.error('admin_mentor.create_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -121,7 +122,7 @@ export const updateAdminMentor = async (req: Request, res: Response): Promise<vo
 
         res.status(200).json({ message: 'Mentor updated successfully', data: mentor });
     } catch (error) {
-        console.error('Error updating admin mentor:', error);
+        logger.error('admin_mentor.update_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -144,7 +145,7 @@ export const deleteAdminMentor = async (req: Request, res: Response): Promise<vo
 
         res.status(200).json({ message: 'Mentor deleted successfully' });
     } catch (error) {
-        console.error('Error deleting admin mentor:', error);
+        logger.error('admin_mentor.delete_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -154,7 +155,7 @@ export const getPendingMentors = async (_req: Request, res: Response): Promise<v
         const mentors = await PendingMentorProfile.find({}).sort({ createdAt: -1 }).lean();
         res.status(200).json({ message: 'Pending mentors fetched successfully', data: mentors });
     } catch (error) {
-        console.error('Error fetching pending mentors:', error);
+        logger.error('pending_mentor.list_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -203,7 +204,7 @@ export const approvePendingMentor = async (req: Request, res: Response): Promise
             data: approvedMentor,
         });
     } catch (error) {
-        console.error('Error approving pending mentor:', error);
+        logger.error('pending_mentor.approve_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };
@@ -226,7 +227,7 @@ export const declinePendingMentor = async (req: Request, res: Response): Promise
 
         res.status(200).json({ message: 'Mentor declined successfully' });
     } catch (error) {
-        console.error('Error declining pending mentor:', error);
+        logger.error('pending_mentor.decline_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Internal server error' });
     }
 };
