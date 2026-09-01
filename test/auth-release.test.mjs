@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import test from 'node:test';
 import { signup, confirmEmail, login, logout, me } from '../dist/controller/auth/auth.js';
-import { authMiddleware, hasPermission, requirePermission } from '../dist/middleware/authMiddleware.js';
+import { authMiddleware, hasPermission, optionalAuthMiddleware, requirePermission } from '../dist/middleware/authMiddleware.js';
 import EmailOutbox from '../dist/model/emailOutboxModel.js';
 import User from '../dist/model/userModel.js';
 import { createRequest, createResponse, flushTasks, nextSpy } from './helpers.mjs';
@@ -49,6 +49,19 @@ test('permission middleware distinguishes unauthenticated, forbidden, and allowe
     const allowed = nextSpy();
     middleware(createRequest({ user: { id: '1', email: 'root@example.com', role: 'super_admin' } }), createResponse().res, allowed.next);
     assert.equal(allowed.state.called, true);
+});
+
+test('session check treats a missing token as an anonymous user', async () => {
+    const request = createRequest({ method: 'GET' });
+    const response = createResponse();
+    const next = nextSpy();
+
+    await optionalAuthMiddleware(request, response.res, next.next);
+    assert.equal(next.state.called, true);
+
+    me(request, response.res);
+    assert.equal(response.state.statusCode, 200);
+    assert.deepEqual(response.state.body, { user: null });
 });
 
 test('signup, confirmation, login, session check, and logout complete one account lifecycle', async (t) => {

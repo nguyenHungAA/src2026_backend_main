@@ -19,6 +19,19 @@ test('publication validation rejects malformed email, date, and DOI before persi
     assert.equal(response.state.body.code, 'INVALID_SUBMISSION_FORMAT');
 });
 
+test('publication validation rejects implausible legacy years', async () => {
+    const response = createResponse();
+    await submitPublication(createRequest({ body: {
+        publishTitle: 'Release paper',
+        author: 'Release Author',
+        publishDate: '0012-12-12',
+        content: 'Abstract',
+        authorGmail: 'author@example.com',
+    } }), response.res);
+    assert.equal(response.state.statusCode, 400);
+    assert.equal(response.state.body.code, 'INVALID_SUBMISSION_FORMAT');
+});
+
 test('publication validation rejects untrusted image references', async () => {
     const response = createResponse();
     await submitPublication(createRequest({ body: {
