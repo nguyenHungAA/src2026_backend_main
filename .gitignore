@@ -5,10 +5,14 @@ node_modules/
 dist/
 build/
 
-# Environment variables
-.env
-.env.local
-.env.production
+# Environment and credential files
+.env*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
 
 # Logs
 *.log
@@ -23,6 +27,7 @@ pids
 
 # Coverage directory used by tools like istanbul
 coverage/
+backups/
 
 # IDE files
 .vscode/
