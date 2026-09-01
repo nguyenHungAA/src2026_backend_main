@@ -27,6 +27,9 @@ const publicationEditableFields = [
     'feedback',
 ] as const;
 
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const doiPattern = /^(10\.\d{4,9}\/[-._;()/:A-Z0-9]+)?$/i;
+
 const pickPublicationPayload = (body: Request['body']) => {
     const payload: Partial<Record<(typeof publicationEditableFields)[number], string>> & {
         images?: { url: string; publicId: string }[];
@@ -64,7 +67,21 @@ const pickPublicationPayload = (body: Request['body']) => {
 const validatePublicationPayload = (payload: ReturnType<typeof pickPublicationPayload>) => {
     if (!payload.title) return 'Title is required';
     if (!payload.author) return 'Author is required';
+    if (!payload.publishDate) return 'Publication date is required';
     if (!payload.authorGmail) return 'Author email is required';
+    if (!emailPattern.test(payload.authorGmail)) return 'Author email is invalid';
+    if (!doiPattern.test(payload.doi || '')) return 'DOI is invalid';
+
+    const publicationDate = new Date(payload.publishDate);
+    const publicationYear = publicationDate.getUTCFullYear();
+    if (
+        Number.isNaN(publicationDate.getTime()) ||
+        publicationYear < 2000 ||
+        publicationYear > new Date().getUTCFullYear() + 1
+    ) {
+        return 'Publication date is invalid';
+    }
+
     return '';
 };
 

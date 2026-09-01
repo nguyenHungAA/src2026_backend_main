@@ -86,6 +86,22 @@ const readCookieToken = (cookieHeader?: string) => {
     return decodeURIComponent(accessTokenCookie.slice('accessToken='.length));
 };
 
+const readAccessToken = (req: Request) =>
+    readCookieToken(req.headers.cookie) ?? readBearerToken(req.headers.authorization);
+
+export const optionalAuthMiddleware = async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+): Promise<void> => {
+    if (!readAccessToken(req)) {
+        next();
+        return;
+    }
+
+    await authMiddleware(req, res, next);
+};
+
 export const authMiddleware = async (
     req: AuthenticatedRequest,
     res: Response,
@@ -97,7 +113,7 @@ export const authMiddleware = async (
         return;
     }
 
-    const token = readCookieToken(req.headers.cookie) ?? readBearerToken(req.headers.authorization);
+    const token = readAccessToken(req);
     if (!token) {
         unauthorized(res);
         return;

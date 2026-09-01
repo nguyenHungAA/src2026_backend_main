@@ -8,6 +8,12 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const doiPattern = /^(10\.\d{4,9}\/[-._;()/:A-Z0-9]+)?$/i;
 const limits = { publishTitle: 300, author: 500, publishDate: 40, content: 100_000, authorGmail: 254, doi: 300, journal: 500 } as const;
 
+const isPlausiblePublicationDate = (value: string) => {
+    const date = new Date(value);
+    const year = date.getUTCFullYear();
+    return !Number.isNaN(date.getTime()) && year >= 2000 && year <= new Date().getUTCFullYear() + 1;
+};
+
 const submitPublication = async (req: Request, res: Response): Promise<void> => {
     try {
         const {
@@ -31,7 +37,7 @@ const submitPublication = async (req: Request, res: Response): Promise<void> => 
             res.status(400).json({ code: 'INVALID_SUBMISSION', message: 'One or more publication fields are invalid or too long.' });
             return;
         }
-        if (!emailPattern.test(authorGmail) || !doiPattern.test(doi || '') || Number.isNaN(new Date(publishDate).getTime())) {
+        if (!emailPattern.test(authorGmail) || !doiPattern.test(doi || '') || !isPlausiblePublicationDate(publishDate)) {
             res.status(400).json({ code: 'INVALID_SUBMISSION_FORMAT', message: 'Email, publication date, or DOI format is invalid.' });
             return;
         }

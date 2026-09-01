@@ -4,7 +4,6 @@ import { logger } from '../utils/logger.js';
 
 dotenv.config();
 
-const MONGO_URI = process.env.MONGO_URI;
 let connectionPromise: Promise<typeof mongoose> | null = null;
 
 const connectDB = async (): Promise<void> => {
@@ -13,12 +12,14 @@ const connectDB = async (): Promise<void> => {
             return;
         }
 
-        if (!MONGO_URI) {
+        const mongoUri = process.env.MONGO_URI;
+        if (!mongoUri) {
             throw new Error('MONGO_URI is not defined in environment variables');
         }
 
-        connectionPromise ??= mongoose.connect(MONGO_URI, { dbName: 'publicationDb' });
+        connectionPromise ??= mongoose.connect(mongoUri, { dbName: 'publicationDb' });
         await connectionPromise;
+        connectionPromise = null;
         logger.info('database.connected');
     } catch (error) {
         connectionPromise = null;

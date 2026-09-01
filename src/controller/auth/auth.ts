@@ -319,7 +319,7 @@ const login = async (req: Request, res: Response): Promise<void> => {
 };
 
 const me = (req: AuthenticatedRequest, res: Response): void => {
-    res.status(200).json({ user: req.user });
+    res.status(200).json({ user: req.user ?? null });
 };
 
 const logout = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
