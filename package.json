@@ -8,13 +8,20 @@
     "watch": "node --loader ts-node/esm --watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "prestart": "npm run build"
+    "prestart": "npm run build",
+    "migrate:indexes": "node --loader ts-node/esm src/scripts/migrateIndexes.ts",
+    "backup": "bash scripts/backup.sh",
+    "restore": "bash scripts/restore.sh",
+    "test:api": "bash scripts/api-smoke.sh",
+    "test": "pnpm run build && node --test test/*.test.mjs",
+    "check": "pnpm run test"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "devDependencies": {
+    "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/multer": "^2.1.0",
@@ -26,6 +33,7 @@
   },
   "dependencies": {
     "cloudinary": "^2.10.0",
+    "compression": "^1.8.1",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "mongoose": "^9.6.2",

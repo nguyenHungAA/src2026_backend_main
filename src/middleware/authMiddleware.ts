@@ -1,11 +1,13 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { NextFunction, Request, Response } from 'express';
 import User from '../model/userModel.js';
+import { logger } from '../utils/logger.js';
 
 type AccessTokenPayload = {
     userId: string;
     iat: number;
     exp: number;
+    tokenVersion: number;
 };
 
 export type AuthenticatedRequest = Request & {
@@ -16,8 +18,17 @@ export type AuthenticatedRequest = Request & {
     };
 };
 
-const unauthorized = (res: Response, message = 'Unauthorized') =>
-    res.status(401).json({ message });
+const clearAccessCookie = (res: Response) => res.clearCookie('accessToken', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    path: '/',
+});
+
+const unauthorized = (res: Response, message = 'Unauthorized') => {
+    clearAccessCookie(res);
+    return res.status(401).json({ code: 'UNAUTHORIZED', message, requestId: res.locals.requestId });
+};
 
 
 const decodeBase64UrlJson = <Payload>(value: string): Payload | null => {
@@ -107,6 +118,7 @@ export const authMiddleware = async (
         decodedHeader.typ !== 'JWT' ||
         !decodedPayload?.userId ||
         typeof decodedPayload.exp !== 'number'
+        || typeof decodedPayload.tokenVersion !== 'number'
     ) {
         unauthorized(res, 'Invalid token');
         return;
@@ -124,7 +136,7 @@ export const authMiddleware = async (
 
     try {
         const user = await User.findById(decodedPayload.userId).lean();
-        if (!user || !user.isEmailVerified) {
+        if (!user || !user.isEmailVerified || user.tokenVersion !== decodedPayload.tokenVersion) {
             unauthorized(res);
             return;
         }
@@ -137,22 +149,9 @@ export const authMiddleware = async (
 
         next();
     } catch (error) {
-        console.error('Authentication error:', error);
-        res.status(500).json({ message: 'Could not authenticate request' });
+        logger.error('auth.authentication_failed', error, { requestId: res.locals.requestId });
+        res.status(503).json({ code: 'AUTHENTICATION_UNAVAILABLE', message: 'Could not authenticate request', requestId: res.locals.requestId });
     }
-};
-
-export const adminMiddleware = (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-): void => {
-    if (!req.user) {
-        unauthorized(res);
-        return;
-    }
-
-    next();
 };
 
 export type Permission =
@@ -193,12 +192,11 @@ const rolePermissions: Record<string, Permission[]> = {
     reviewer: ['dashboard.read', 'content.read', 'submissions.review', 'news.manage'],
     contributor: ['dashboard.read', 'content.read', 'content.update', 'news.manage'],
     viewer: ['dashboard.read', 'content.read'],
-    // Preserve current local behavior until users are migrated to explicit CMS roles.
-    user: allPermissions,
+    user: [],
 };
 
 export const hasPermission = (role: string | undefined, permission: Permission): boolean =>
-    (rolePermissions[role || 'user'] ?? rolePermissions.user).includes(permission);
+    (rolePermissions[role || ''] ?? []).includes(permission);
 
 export const requirePermission = (permission: Permission) => (
     req: AuthenticatedRequest,
@@ -211,7 +209,13 @@ export const requirePermission = (permission: Permission) => (
     }
 
     if (!hasPermission(req.user.role, permission)) {
-        res.status(403).json({ message: 'Forbidden' });
+        logger.warn('authorization.denied', {
+            requestId: res.locals.requestId,
+            permission,
+            role: req.user.role,
+            actorId: req.user.id,
+        });
+        res.status(403).json({ code: 'FORBIDDEN', message: 'Forbidden' });
         return;
     }
 

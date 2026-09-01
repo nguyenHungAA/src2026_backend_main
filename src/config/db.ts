@@ -1,8 +1,6 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import dns from 'node:dns';
-
-dns.setServers(["1.1.1.1", "1.0.0.1"]);
+import { logger } from '../utils/logger.js';
 
 dotenv.config();
 
@@ -21,11 +19,11 @@ const connectDB = async (): Promise<void> => {
 
         connectionPromise ??= mongoose.connect(MONGO_URI, { dbName: 'publicationDb' });
         await connectionPromise;
-        console.log('MongoDB connected successfully');
+        logger.info('database.connected');
     } catch (error) {
         connectionPromise = null;
-        console.error('MongoDB connection error:', error);
-        console.warn('Server will start without database connection.');
+        logger.error('database.connection_failed', error);
+        logger.warn('database.starting_without_connection');
     }
 };
 

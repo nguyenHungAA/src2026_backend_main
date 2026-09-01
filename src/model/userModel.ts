@@ -7,6 +7,7 @@ export interface IUser extends Document {
     isEmailVerified: boolean;
     emailVerificationToken?: string;
     emailVerificationExpiresAt?: Date;
+    tokenVersion: number;
 }
 
 const userSchema = new Schema<IUser>(
@@ -19,10 +20,15 @@ const userSchema = new Schema<IUser>(
             trim: true,
         },
         password: { type: String, required: true },
-        role: { type: String, default: 'user' },
+        role: {
+            type: String,
+            enum: ['user', 'viewer', 'contributor', 'reviewer', 'editor', 'admin', 'super_admin'],
+            default: 'user',
+        },
         isEmailVerified: { type: Boolean, default: false },
         emailVerificationToken: { type: String },
         emailVerificationExpiresAt: { type: Date },
+        tokenVersion: { type: Number, default: 0, min: 0 },
     },
     { timestamps: true }
 );

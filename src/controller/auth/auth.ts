@@ -8,14 +8,15 @@ import {
 import { promisify } from 'node:util';
 import { Request, Response } from 'express';
 import User from '../../model/userModel.js';
-import { sendSignupConfirmationEmail } from '../../service/emailService.js';
+import { enqueueEmail } from '../../service/emailOutboxService.js';
+import { logger } from '../../utils/logger.js';
 import type { AuthenticatedRequest } from '../../middleware/authMiddleware.js';
 
 const scrypt = promisify(scryptCallback);
-const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000 * 60; // 60 days in milliseconds
+const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ACCESS_TOKEN_COOKIE_NAME = 'accessToken';
-const ACCESS_TOKEN_TTL_MS = 60 * 60 * 1000 * 720;
+const ACCESS_TOKEN_TTL_MS = 60 * 60 * 1000;
 
 const getAccessTokenCookieOptions = () => {
     const isProduction = process.env.NODE_ENV === 'production';
@@ -54,7 +55,7 @@ const verifyPassword = async (password: string, storedPassword: string): Promise
     return timingSafeEqual(storedKey, derivedKey);
 };
 
-const createAccessToken = (userId: string): string => {
+const createAccessToken = (userId: string, tokenVersion: number): string => {
     const secret = process.env.JWT_SECRET;
     if (!secret) {
         throw new Error('JWT_SECRET is not defined in environment variables');
@@ -64,6 +65,7 @@ const createAccessToken = (userId: string): string => {
     const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
     const payload = Buffer.from(JSON.stringify({
         userId,
+        tokenVersion,
         iat: issuedAt,
         exp: issuedAt + 60 * 60,
     })).toString('base64url');
@@ -143,8 +145,8 @@ const signup = async (req: Request, res: Response): Promise<void> => {
         return;
     }
 
-    if (password.length < 6) {
-        res.status(400).json({ message: 'Password must be at least 6 characters long' });
+    if (password.length < 12) {
+        res.status(400).json({ message: 'Password must be at least 12 characters long' });
         return;
     }
 
@@ -177,7 +179,12 @@ const signup = async (req: Request, res: Response): Promise<void> => {
             await existingUser.save();
 
             try {
-                await sendSignupConfirmationEmail(email, confirmationToken);
+                await enqueueEmail(
+                    'auth.signup_confirmation',
+                    String(existingUser._id),
+                    { email, token: confirmationToken },
+                    `auth.signup_confirmation:${existingUser._id}:${emailVerificationToken}`,
+                );
             } catch (error) {
                 existingUser.password = previousPassword;
                 existingUser.emailVerificationToken = previousToken;
@@ -187,7 +194,7 @@ const signup = async (req: Request, res: Response): Promise<void> => {
             }
 
             res.status(200).json({
-                message: 'A new confirmation email has been sent. Check your inbox.',
+            message: 'A new confirmation email has been queued. Check your inbox.',
             });
             return;
         }
@@ -200,14 +207,19 @@ const signup = async (req: Request, res: Response): Promise<void> => {
         });
 
         try {
-            await sendSignupConfirmationEmail(email, confirmationToken);
+            await enqueueEmail(
+                'auth.signup_confirmation',
+                String(user._id),
+                { email, token: confirmationToken },
+                `auth.signup_confirmation:${user._id}:${emailVerificationToken}`,
+            );
         } catch (error) {
             await User.deleteOne({ _id: user._id });
             throw error;
         }
 
         res.status(201).json({
-            message: 'Signup successful. Check your email to confirm your account.',
+            message: 'Signup successful. A confirmation email has been queued.',
         });
     } catch (error: any) {
         if (error?.code === 11000) {
@@ -215,7 +227,7 @@ const signup = async (req: Request, res: Response): Promise<void> => {
             return;
         }
 
-        console.error('Signup error:', error);
+        logger.error('auth.signup_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Could not create account' });
     }
 };
@@ -258,7 +270,7 @@ const confirmEmail = async (req: Request, res: Response): Promise<void> => {
             true
         ));
     } catch (error) {
-        console.error('Email confirmation error:', error);
+        logger.error('auth.confirm_email_failed', error, { requestId: res.locals.requestId });
         res.status(500).send(confirmationPage(
             'Could not confirm email',
             'Something went wrong while confirming your email. Please try again later.',
@@ -278,14 +290,9 @@ const login = async (req: Request, res: Response): Promise<void> => {
 
     try {
         const user = await User.findOne({ email });
-
-        if (!user) {
-            res.status(401).json({ message: 'Invalid email or password' });
-            return;
-        }
-
-        const isPasswordValid = await verifyPassword(password, user.password);
-        if (!isPasswordValid) {
+        const dummyPasswordHash = `${'0'.repeat(32)}:${'0'.repeat(128)}`;
+        const isPasswordValid = await verifyPassword(password, user?.password ?? dummyPasswordHash);
+        if (!user || !isPasswordValid) {
             res.status(401).json({ message: 'Invalid email or password' });
             return;
         }
@@ -295,7 +302,7 @@ const login = async (req: Request, res: Response): Promise<void> => {
             return;
         }
 
-        const token = createAccessToken(String(user._id));
+        const token = createAccessToken(String(user._id), user.tokenVersion);
         res.cookie(ACCESS_TOKEN_COOKIE_NAME, token, getAccessTokenCookieOptions());
         res.status(200).json({
             message: 'Logged in',
@@ -306,7 +313,7 @@ const login = async (req: Request, res: Response): Promise<void> => {
             },
         });
     } catch (error) {
-        console.error('Login error:', error);
+        logger.error('auth.login_failed', error, { requestId: res.locals.requestId });
         res.status(500).json({ message: 'Could not log in' });
     }
 };
@@ -315,7 +322,10 @@ const me = (req: AuthenticatedRequest, res: Response): void => {
     res.status(200).json({ user: req.user });
 };
 
-const logout = (_req: Request, res: Response): void => {
+const logout = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    if (req.user) {
+        await User.updateOne({ _id: req.user.id }, { $inc: { tokenVersion: 1 } });
+    }
     const { maxAge: _maxAge, ...cookieOptions } = getAccessTokenCookieOptions();
     res.clearCookie(ACCESS_TOKEN_COOKIE_NAME, cookieOptions);
     res.status(200).json({ message: 'Logged out' });
